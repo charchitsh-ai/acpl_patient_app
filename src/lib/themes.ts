@@ -19,11 +19,12 @@ export const THEME_IDS = [
   "cobalt",
   "amber",
   "rose",
+  "light",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
 
-export const DEFAULT_THEME: ThemeId = "violet";
+export const DEFAULT_THEME: ThemeId = "light";
 
 export const STORAGE_KEY = "wacrm.theme";
 
@@ -70,6 +71,12 @@ export const THEMES: ReadonlyArray<ThemeMeta> = [
     name: "Rose",
     tagline: "Bold and modern — D2C, creator-economy, lifestyle.",
     swatch: "oklch(0.645 0.22 16)",
+  },
+  {
+    id: "light",
+    name: "Classic Light",
+    tagline: "A clean, bright light mode for daytime usage.",
+    swatch: "oklch(0.85 0.05 200)",
   },
 ];
 

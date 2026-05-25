@@ -256,6 +256,57 @@ html[data-theme="rose"] {
   --sidebar-ring: oklch(0.645 0.22 16);
 }
 
+html[data-theme="light"] {
+  --background: oklch(0.97 0.01 260);
+  --foreground: oklch(0.13 0.01 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.13 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.13 0.01 260);
+  --primary: oklch(0.526 0.247 293);
+  --primary-foreground: oklch(1 0 0);
+  --primary-hover: oklch(0.45 0.24 293);
+  --primary-soft: oklch(0.526 0.247 293 / 0.08);
+  --primary-soft-2: oklch(0.526 0.247 293 / 0.15);
+  --secondary: oklch(0.95 0.005 260);
+  --secondary-foreground: oklch(0.13 0.01 260);
+  --muted: oklch(0.95 0.005 260);
+  --muted-foreground: oklch(0.5 0.01 260);
+  --accent: oklch(0.92 0.01 260);
+  --accent-foreground: oklch(0.13 0.01 260);
+  --destructive: oklch(0.6 0.22 25);
+  --border: oklch(0.88 0.01 260);
+  --input: oklch(0.88 0.01 260);
+  --ring: oklch(0.526 0.247 293);
+  --chart-1: oklch(0.526 0.247 293);
+  --chart-2: oklch(0.6 0.15 220);
+  --chart-3: oklch(0.7 0.15 35);
+  --chart-4: oklch(0.439 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.98 0.005 260);
+  --sidebar-foreground: oklch(0.13 0.01 260);
+  --sidebar-primary: oklch(0.526 0.247 293);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.008 260);
+  --sidebar-accent-foreground: oklch(0.13 0.01 260);
+  --sidebar-border: oklch(0.88 0.01 260);
+  --sidebar-ring: oklch(0.526 0.247 293);
+
+  /* Smart CSS Inversion for Light Mode */
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+/* Double-invert media and graphics to display them in original colors */
+html[data-theme="light"] img,
+html[data-theme="light"] video,
+html[data-theme="light"] svg,
+html[data-theme="light"] iframe,
+html[data-theme="light"] canvas,
+html[data-theme="light"] [style*="background-image"],
+html[data-theme="light"] .no-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
