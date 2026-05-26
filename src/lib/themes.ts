@@ -44,9 +44,9 @@ export interface ThemeMeta {
 export const THEMES: ReadonlyArray<ThemeMeta> = [
   {
     id: "violet",
-    name: "Violet",
-    tagline: "The default — confident, slightly playful.",
-    swatch: "oklch(0.526 0.247 293)",
+    name: "WhatsApp Green",
+    tagline: "The default — fresh WhatsApp green, professional and recognizable.",
+    swatch: "oklch(0.742 0.196 149)",
   },
   {
     id: "emerald",
