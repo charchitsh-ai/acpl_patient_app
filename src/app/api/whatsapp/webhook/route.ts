@@ -212,7 +212,12 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
         .single()
 
       if (configError || !config) {
-        console.error('No config found for phone_number_id:', phoneNumberId)
+        console.error('No config found for phone_number_id:', phoneNumberId, {
+          error: configError ? (configError.message || configError) : 'No row found',
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+          serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY ? process.env.SUPABASE_SERVICE_ROLE_KEY.length : 0
+        })
         continue
       }
 
