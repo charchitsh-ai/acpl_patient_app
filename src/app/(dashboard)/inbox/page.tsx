@@ -72,7 +72,7 @@ export default function InboxPage() {
   }, [conversations]);
 
   // Stable ref to selection handler for notification clicks
-  const handleSelectRef = useRef(handleSelectConversation);
+  const handleSelectRef = useRef<((conv: Conversation) => void) | null>(null);
   useEffect(() => {
     handleSelectRef.current = handleSelectConversation;
   });
@@ -200,7 +200,7 @@ export default function InboxPage() {
             notification.onclick = () => {
               window.focus();
               const fullConv = convs.find((c) => c.id === newMsg.conversation_id);
-              if (fullConv) {
+              if (fullConv && handleSelectRef.current) {
                 handleSelectRef.current(fullConv);
               }
             };
