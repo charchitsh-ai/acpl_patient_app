@@ -204,12 +204,15 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
 
       const phoneNumberId = value.metadata.phone_number_id
 
-      // Find user's config by phone_number_id
-      const { data: config, error: configError } = await supabaseAdmin()
+      // Find user's config by phone_number_id (pick latest if duplicates exist)
+      const { data: configs, error: configError } = await supabaseAdmin()
         .from('whatsapp_config')
         .select('*')
         .eq('phone_number_id', phoneNumberId)
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const config = configs?.[0]
 
       if (configError || !config) {
         console.error('No config found for phone_number_id:', phoneNumberId, {
