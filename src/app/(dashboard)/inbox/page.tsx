@@ -63,11 +63,28 @@ export default function InboxPage() {
    * realtime channel). The ref is kept in sync via the effect below.
    */
   const knownConvIdsRef = useRef<Set<string>>(new Set());
+  const conversationsRef = useRef<Conversation[]>([]);
   useEffect(() => {
     const next = new Set<string>();
     for (const c of conversations) next.add(c.id);
     knownConvIdsRef.current = next;
+    conversationsRef.current = conversations;
   }, [conversations]);
+
+  // Stable ref to selection handler for notification clicks
+  const handleSelectRef = useRef(handleSelectConversation);
+  useEffect(() => {
+    handleSelectRef.current = handleSelectConversation;
+  });
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
 
   // Pull the conversation row with its `contact` joined and merge it
   // into state. Needed because Supabase Realtime payloads only carry the
@@ -166,6 +183,28 @@ export default function InboxPage() {
             );
             return [...withoutOptimistic, newMsg];
           });
+        }
+
+        // Trigger browser notification if message is from a customer
+        if (newMsg.sender_type === "customer") {
+          const convs = conversationsRef.current;
+          const conv = convs.find((c) => c.id === newMsg.conversation_id);
+          const contactName = conv?.contact?.name || conv?.contact?.phone || "Customer";
+
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            const notification = new Notification(`New Message from ${contactName}`, {
+              body: newMsg.content_text || "Attachment received",
+              tag: newMsg.conversation_id, // Collapse notifications from same sender
+              requireInteraction: true // Keep notification active until closed/clicked
+            });
+            notification.onclick = () => {
+              window.focus();
+              const fullConv = convs.find((c) => c.id === newMsg.conversation_id);
+              if (fullConv) {
+                handleSelectRef.current(fullConv);
+              }
+            };
+          }
         }
 
         // Update conversation list preview. We need to know *synchronously*
