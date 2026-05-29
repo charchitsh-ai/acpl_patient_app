@@ -6,6 +6,8 @@ import { normalizePhone, phonesMatch } from '@/lib/whatsapp/phone-utils'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
+import { sendFCMNotification } from '@/lib/firebase/server'
+
 
 // Lazy-initialized to avoid build-time crash when env vars are missing
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -582,6 +584,17 @@ async function processMessage(
   // so the broadcast's `replied_count` advances (via the aggregate
   // trigger installed in migration 003).
   await flagBroadcastReplyIfAny(userId, contactRecord.id)
+
+  // Dispatch background push notification via Firebase FCM
+  void sendFCMNotification(userId, {
+    title: `New Message from ${contactRecord.name || contactRecord.phone || 'Customer'}`,
+    body: contentText || `Received a new ${contentType} message.`,
+    data: {
+      conversation_id: conversation.id,
+      contact_id: contactRecord.id,
+    }
+  }).catch((err) => console.error('[webhook] Failed to dispatch FCM push:', err))
+
 
   // ============================================================
   // Flow runner dispatch.

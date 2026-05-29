@@ -11,6 +11,8 @@ import { ContactSidebar } from "@/components/inbox/contact-sidebar";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { requestAndSaveFCMToken, onMessageListener } from "@/lib/firebase/config";
+
 
 export default function InboxPage() {
   const router = useRouter();
@@ -77,12 +79,38 @@ export default function InboxPage() {
     handleSelectRef.current = handleSelectConversation;
   });
 
-  // Request notification permission on mount
+  // Setup Firebase Cloud Messaging for Push Notifications
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        Notification.requestPermission();
+    const setupFCM = async () => {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
+
+      if (user) {
+        await requestAndSaveFCMToken(supabase, user.id);
       }
+    };
+
+    setupFCM();
+  }, []);
+
+  // Listen to active foreground push notifications
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      onMessageListener()
+        .then((payload: any) => {
+          console.log("Foreground push notification received:", payload);
+          toast(
+            payload.notification?.title || "New Message Received",
+            {
+              description: payload.notification?.body || "You have a new message.",
+              duration: 5000,
+            }
+          );
+        })
+        .catch((err) => console.error("Foreground push notification listener error:", err));
     }
   }, []);
 
