@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CustomField, Tag } from '@/types';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   Users,
   Tags,
@@ -384,6 +385,114 @@ export function Step2SelectAudience({
                 placeholder="Value"
                 className="h-9 rounded-lg border border-slate-700 bg-slate-800 px-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-primary focus:ring-1 focus:ring-primary"
               />
+            </div>
+          )}
+        </div>
+      )}
+
+      {audience.type === 'csv' && (
+        <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+          <div>
+            <p className="text-sm font-medium text-white">Upload CSV File</p>
+            <p className="text-xs text-slate-400 mt-1">
+              File must contain a column for phone numbers (e.g. "phone", "mobile") and optionally names.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-lg p-6 bg-slate-950/40 hover:border-slate-700 transition-colors relative">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  const text = event.target?.result as string;
+                  if (!text) return;
+
+                  // Simple robust CSV line parser
+                  const lines = text.split(/\r?\n/).map(line => {
+                    // Match commas but ignore commas inside quotes
+                    const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+                    return matches.map(m => m.replace(/^"|"$/g, '').trim());
+                  }).filter(line => line.length > 0 && line.some(cell => cell !== ''));
+
+                  if (lines.length === 0) {
+                    toast.error('The selected CSV file is empty.');
+                    return;
+                  }
+
+                  const headers = lines[0].map(h => h.toLowerCase());
+                  
+                  // Find column indices
+                  let phoneIdx = headers.findIndex(h => h.includes('phone') || h.includes('mobile') || h.includes('number') || h.includes('tel') || h.includes('contact'));
+                  let nameIdx = headers.findIndex(h => h.includes('name') || h.includes('first') || h.includes('full'));
+
+                  // Fallbacks if headers are not clearly labeled
+                  if (phoneIdx === -1) phoneIdx = 0;
+                  if (nameIdx === -1) nameIdx = 1;
+
+                  const contacts: { phone: string; name?: string }[] = [];
+                  const dataLines = lines.slice(1); // skip header line
+
+                  dataLines.forEach(line => {
+                    let phone = line[phoneIdx] || '';
+                    // Clean non-digits except +
+                    phone = phone.replace(/[^\d+]/g, '');
+                    if (phone.length >= 7) {
+                      const name = nameIdx !== -1 ? line[nameIdx] : undefined;
+                      contacts.push({ phone, name });
+                    }
+                  });
+
+                  if (contacts.length === 0) {
+                    toast.error('Could not find any valid phone numbers in the CSV.');
+                    return;
+                  }
+
+                  onUpdate({
+                    ...audience,
+                    csvContacts: contacts,
+                  });
+                  toast.success(`Successfully loaded ${contacts.length} contacts from CSV.`);
+                };
+                reader.readAsText(file);
+              }}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
+            <Upload className="h-8 w-8 text-slate-500 mb-2" />
+            <span className="text-sm font-medium text-slate-300">
+              Click to upload or drag & drop CSV file
+            </span>
+            <span className="text-xs text-slate-500 mt-1">.CSV format only</span>
+          </div>
+
+          {audience.csvContacts && audience.csvContacts.length > 0 && (
+            <div className="border border-slate-800 rounded-lg p-3 bg-slate-950/20">
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <span>Parsed {audience.csvContacts.length} contacts</span>
+                <button
+                  onClick={() => onUpdate({ ...audience, csvContacts: [] })}
+                  className="text-red-400 hover:text-red-300 font-medium"
+                >
+                  Clear File
+                </button>
+              </div>
+              <div className="max-h-32 overflow-y-auto space-y-1 text-xs font-mono text-slate-300">
+                {audience.csvContacts.slice(0, 5).map((contact, idx) => (
+                  <div key={idx} className="flex justify-between border-b border-slate-900 pb-1">
+                    <span>{contact.name || 'No Name'}</span>
+                    <span className="text-slate-500">{contact.phone}</span>
+                  </div>
+                ))}
+                {audience.csvContacts.length > 5 && (
+                  <div className="text-slate-500 text-center pt-1 italic">
+                    + {audience.csvContacts.length - 5} more contacts
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

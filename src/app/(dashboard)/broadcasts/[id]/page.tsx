@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Broadcast, BroadcastRecipient, RecipientStatus } from '@/types';
@@ -155,38 +155,58 @@ export default function BroadcastDetailPage() {
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [fixingStuck, setFixingStuck] = useState(false);
+
+  const fetchTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function fetchData() {
+    try {
+      const supabase = createClient();
+
+      const { data: bc, error: bcError } = await supabase
+        .from('broadcasts')
+        .select('*')
+        .eq('id', broadcastId)
+        .single();
+
+      if (bcError) throw bcError;
+      setBroadcast(bc);
+
+      const { data: recs, error: recsError } = await supabase
+        .from('broadcast_recipients')
+        .select('*, contact:contacts(*)')
+        .eq('broadcast_id', broadcastId)
+        .order('created_at', { ascending: false });
+
+      if (recsError) throw recsError;
+      setRecipients(recs ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load broadcast');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
-
-        const { data: bc, error: bcError } = await supabase
-          .from('broadcasts')
-          .select('*')
-          .eq('id', broadcastId)
-          .single();
-
-        if (bcError) throw bcError;
-        setBroadcast(bc);
-
-        const { data: recs, error: recsError } = await supabase
-          .from('broadcast_recipients')
-          .select('*, contact:contacts(*)')
-          .eq('broadcast_id', broadcastId)
-          .order('created_at', { ascending: false });
-
-        if (recsError) throw recsError;
-        setRecipients(recs ?? []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load broadcast');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchData();
   }, [broadcastId]);
+
+  // Set up polling while the status is 'sending'
+  useEffect(() => {
+    if (broadcast?.status === 'sending') {
+      fetchTimer.current = setInterval(fetchData, 5000);
+    } else {
+      if (fetchTimer.current) {
+        clearInterval(fetchTimer.current);
+        fetchTimer.current = null;
+      }
+    }
+    return () => {
+      if (fetchTimer.current) {
+        clearInterval(fetchTimer.current);
+      }
+    };
+  }, [broadcast?.status]);
 
   const filteredRecipients = useMemo(
     () =>
@@ -195,6 +215,56 @@ export default function BroadcastDetailPage() {
         : recipients.filter((r) => r.status === statusFilter),
     [recipients, statusFilter],
   );
+
+  // Compute stats live from the recipients array (ground truth)
+  const stats = useMemo(() => {
+    const total = recipients.length;
+    let sent = 0;
+    let delivered = 0;
+    let read = 0;
+    let replied = 0;
+    let failed = 0;
+
+    recipients.forEach((r) => {
+      if (['sent', 'delivered', 'read', 'replied'].includes(r.status)) sent++;
+      if (['delivered', 'read', 'replied'].includes(r.status)) delivered++;
+      if (['read', 'replied'].includes(r.status)) read++;
+      if (r.status === 'replied') replied++;
+      if (r.status === 'failed') failed++;
+    });
+
+    return { total, sent, delivered, read, replied, failed };
+  }, [recipients]);
+
+  // Detect if a broadcast is stuck in 'sending' for more than 2 minutes
+  const isStuck = useMemo(() => {
+    if (broadcast?.status !== 'sending') return false;
+    const createdTime = new Date(broadcast.created_at).getTime();
+    const elapsedMinutes = (Date.now() - createdTime) / 60000;
+    return elapsedMinutes > 2; // Stuck if sending for more than 2 mins
+  }, [broadcast]);
+
+  async function handleFixStuck() {
+    if (!broadcast) return;
+    setFixingStuck(true);
+    try {
+      const supabase = createClient();
+      const finalStatus = stats.failed === stats.total ? 'failed' : 'sent';
+      
+      const { error } = await supabase
+        .from('broadcasts')
+        .update({ status: finalStatus })
+        .eq('id', broadcast.id);
+
+      if (error) throw error;
+      toast.success('Broadcast status updated successfully!');
+      fetchData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setFixingStuck(false);
+    }
+  }
 
   function handleExport() {
     if (!broadcast) return;
@@ -226,10 +296,6 @@ export default function BroadcastDetailPage() {
   async function handleDelete() {
     setDeleting(true);
     const supabase = createClient();
-    // broadcast_recipients cascades on broadcasts.id (migration 001), so a
-    // single delete is sufficient — the aggregate trigger in migration 003
-    // is defined on broadcast_recipients but fires only on its own row
-    // changes, not on a cascaded drop of the parent row.
     const { error: delErr } = await supabase
       .from('broadcasts')
       .delete()
@@ -265,14 +331,32 @@ export default function BroadcastDetailPage() {
   const status = getBroadcastStatus(broadcast.status);
 
   const funnelSteps: FunnelStep[] = [
-    { label: 'Sent', value: broadcast.sent_count, color: 'bg-primary' },
-    { label: 'Delivered', value: broadcast.delivered_count, color: 'bg-teal-500' },
-    { label: 'Read', value: broadcast.read_count, color: 'bg-blue-500' },
-    { label: 'Replied', value: broadcast.replied_count, color: 'bg-indigo-500' },
+    { label: 'Sent', value: stats.sent, color: 'bg-primary' },
+    { label: 'Delivered', value: stats.delivered, color: 'bg-teal-500' },
+    { label: 'Read', value: stats.read, color: 'bg-blue-500' },
+    { label: 'Replied', value: stats.replied, color: 'bg-indigo-500' },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Stuck Broadcast Banner */}
+      {isStuck && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-200">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertCircle className="h-5 w-5 text-yellow-400 shrink-0" />
+            <span>This broadcast appears to be stuck in sending. You can force-mark it as finished.</span>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleFixStuck}
+            disabled={fixingStuck}
+            className="bg-yellow-600 text-white hover:bg-yellow-700 h-8 text-xs"
+          >
+            {fixingStuck ? 'Updating...' : 'Mark as Sent'}
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-4">
@@ -303,91 +387,93 @@ export default function BroadcastDetailPage() {
           </div>
         </div>
 
-        {/* Delete — inline-confirm pattern matches the pipeline-settings
-            "Delete Pipeline" flow. Mid-send broadcasts can't be deleted
-            because orphaning in-flight Meta messages would leave the
-            funnel inconsistent. */}
-        {confirmDelete ? (
-          <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm">
-            <span className="text-red-300">Delete this broadcast?</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleting}
-              className="h-7 border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="h-7 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-            >
-              {deleting ? 'Deleting…' : 'Confirm'}
-            </Button>
-          </div>
-        ) : (
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            disabled={broadcast.status === 'sending'}
-            onClick={() => setConfirmDelete(true)}
-            title={
-              broadcast.status === 'sending'
-                ? 'Cannot delete while a broadcast is actively sending'
-                : 'Delete this broadcast'
-            }
-            className="border-red-500/30 bg-transparent text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+            onClick={fetchData}
+            className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            Refresh
           </Button>
-        )}
+          
+          {confirmDelete ? (
+            <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm">
+              <span className="text-red-300">Delete?</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="h-7 border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="h-7 bg-red-600 text-white hover:bg-red-700"
+              >
+                {deleting ? 'Deleting…' : 'Confirm'}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={broadcast.status === 'sending'}
+              onClick={() => setConfirmDelete(true)}
+              className="border-red-500/30 bg-transparent text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Stats — 6 cards: Total / Sent / Delivered / Read / Replied / Failed */}
+      {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           label="Total Recipients"
-          value={broadcast.total_recipients}
-          total={broadcast.total_recipients}
+          value={stats.total}
+          total={stats.total}
           icon={<Users className="h-4 w-4" />}
           color="bg-slate-800 text-slate-300"
         />
         <StatCard
           label="Sent"
-          value={broadcast.sent_count}
-          total={broadcast.total_recipients}
+          value={stats.sent}
+          total={stats.total}
           icon={<Send className="h-4 w-4" />}
           color="bg-primary/10 text-primary"
         />
         <StatCard
           label="Delivered"
-          value={broadcast.delivered_count}
-          total={broadcast.total_recipients}
+          value={stats.delivered}
+          total={stats.total}
           icon={<CheckCheck className="h-4 w-4" />}
           color="bg-teal-500/10 text-teal-400"
         />
         <StatCard
           label="Read"
-          value={broadcast.read_count}
-          total={broadcast.total_recipients}
+          value={stats.read}
+          total={stats.total}
           icon={<Eye className="h-4 w-4" />}
           color="bg-blue-500/10 text-blue-400"
         />
         <StatCard
           label="Replied"
-          value={broadcast.replied_count}
-          total={broadcast.total_recipients}
+          value={stats.replied}
+          total={stats.total}
           icon={<MessageCircle className="h-4 w-4" />}
           color="bg-indigo-500/10 text-indigo-400"
         />
         <StatCard
           label="Failed"
-          value={broadcast.failed_count}
-          total={broadcast.total_recipients}
+          value={stats.failed}
+          total={stats.total}
           icon={<AlertCircle className="h-4 w-4" />}
           color="bg-red-500/10 text-red-400"
         />
