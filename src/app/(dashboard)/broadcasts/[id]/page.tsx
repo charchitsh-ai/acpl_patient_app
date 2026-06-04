@@ -156,10 +156,12 @@ export default function BroadcastDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [fixingStuck, setFixingStuck] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function fetchData() {
+  async function fetchData(isManual = false) {
+    if (isManual) setRefreshing(true);
     try {
       const supabase = createClient();
 
@@ -180,10 +182,18 @@ export default function BroadcastDetailPage() {
 
       if (recsError) throw recsError;
       setRecipients(recs ?? []);
+      
+      if (isManual) {
+        toast.success('Report stats updated!');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load broadcast');
+      if (isManual) {
+        toast.error('Failed to update stats.');
+      }
     } finally {
       setLoading(false);
+      if (isManual) setRefreshing(false);
     }
   }
 
@@ -391,10 +401,12 @@ export default function BroadcastDetailPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchData}
-            className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800"
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 flex items-center gap-1.5"
           >
-            Refresh
+            {refreshing && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+            {refreshing ? 'Refreshing…' : 'Refresh'}
           </Button>
           
           {confirmDelete ? (
