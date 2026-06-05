@@ -492,9 +492,43 @@ export function WhatsAppConfig() {
                   <Copy className="size-4" />
                 </Button>
               </div>
+        </Card>
+
+        {/* Google Sheets Webhook */}
+        <Card className="bg-slate-900 border-slate-700 ring-0 ring-transparent">
+          <CardHeader>
+            <CardTitle className="text-white">Google Sheets Webhook</CardTitle>
+            <CardDescription className="text-slate-400">
+              Auto-capture new leads from Google Sheets using this Webhook.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Sheets Callback URL</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={typeof window !== 'undefined' ? `${window.location.origin}/api/leads/google-sheet` : ''}
+                  className="bg-slate-800 border-slate-700 text-slate-300 font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/leads/google-sheet`);
+                      toast.success('Google Sheets Webhook URL copied!');
+                    }
+                  }}
+                  className="shrink-0 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  <Copy className="size-4" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
+
 
 
         {/* Action Buttons */}
@@ -647,6 +681,23 @@ export function WhatsAppConfig() {
                     <li>Paste the <strong className="text-slate-200">Leads Callback URL</strong> shown on the left.</li>
                     <li>Enter the <strong className="text-slate-200">Leads Verify Token</strong> (e.g., `aykacare_leads_verify`).</li>
                     <li>Subscribe to the <strong className="text-slate-200">leadgen</strong> field changes.</li>
+                  </ol>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem className="border-slate-700">
+                <AccordionTrigger className="text-slate-300 hover:text-white hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-slate-950">6</span>
+                    Google Sheets Auto-Capture
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="text-slate-400">
+                  <ol className="list-decimal list-inside space-y-1.5 text-sm">
+                    <li>Open your Google Sheet, click <strong className="text-slate-200">Extensions &gt; Apps Script</strong>.</li>
+                    <li>Create a script to trigger on form submissions or row edits.</li>
+                    <li>Fetch and send lead properties (Name, Phone, Email, Source) as JSON to the Sheets Callback URL.</li>
+                    <li>Setup a trigger in Apps Script pointing to your function on <strong className="text-slate-200">Form Submit</strong> or <strong className="text-slate-200">On Edit</strong>.</li>
                   </ol>
                 </AccordionContent>
               </AccordionItem>
