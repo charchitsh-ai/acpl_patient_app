@@ -439,6 +439,64 @@ export function WhatsAppConfig() {
           </CardContent>
         </Card>
 
+        {/* Facebook Leads Webhook */}
+        <Card className="bg-slate-900 border-slate-700 ring-0 ring-transparent">
+          <CardHeader>
+            <CardTitle className="text-white">Facebook Leads Webhook</CardTitle>
+            <CardDescription className="text-slate-400">
+              Configure Facebook/Instagram Lead Ads auto-capture using this Webhook.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-slate-300">Leads Callback URL</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={typeof window !== 'undefined' ? `${window.location.origin}/api/meta-leads/webhook` : ''}
+                  className="bg-slate-800 border-slate-700 text-slate-300 font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/meta-leads/webhook`);
+                      toast.success('Leads Webhook URL copied!');
+                    }
+                  }}
+                  className="shrink-0 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  <Copy className="size-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-300">Default Verify Token</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value="aykacare_leads_verify"
+                  className="bg-slate-800 border-slate-700 text-slate-300 font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText('aykacare_leads_verify');
+                    toast.success('Leads Verify Token copied!');
+                  }}
+                  className="shrink-0 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  <Copy className="size-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
           <Button
@@ -571,6 +629,24 @@ export function WhatsAppConfig() {
                     <li>Paste the <strong className="text-slate-200">Webhook Callback URL</strong> from above</li>
                     <li>Enter the same <strong className="text-slate-200">Verify Token</strong> you set here</li>
                     <li>Subscribe to &quot;messages&quot; webhook field</li>
+                  </ol>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem className="border-slate-700">
+                <AccordionTrigger className="text-slate-300 hover:text-white hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-slate-950">5</span>
+                    Facebook Leads Webhook
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="text-slate-400">
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                    <li>In your Meta App dashboard, add the <strong className="text-slate-200">Webhooks</strong> product.</li>
+                    <li>Select <strong className="text-slate-200">Page</strong> in the dropdown, click <strong className="text-slate-200">Configure Webhook</strong>.</li>
+                    <li>Paste the <strong className="text-slate-200">Leads Callback URL</strong> shown on the left.</li>
+                    <li>Enter the <strong className="text-slate-200">Leads Verify Token</strong> (e.g., `aykacare_leads_verify`).</li>
+                    <li>Subscribe to the <strong className="text-slate-200">leadgen</strong> field changes.</li>
                   </ol>
                 </AccordionContent>
               </AccordionItem>
