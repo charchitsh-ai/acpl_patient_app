@@ -116,26 +116,47 @@ function MediaImage({ url, alt }: { url: string; alt: string }) {
   );
 }
 
+function formatMessageText(text: string) {
+  if (!text) return "";
+  // Escape HTML to prevent injection
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  
+  // Replace *bold* with <strong>bold</strong>
+  // Replace _italic_ with <em>italic</em>
+  // Replace ~strikethrough~ with <del>strikethrough</del>
+  // Replace `code` with <code>code</code>
+  const formatted = escaped
+    .replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
+    .replace(/_([^_]+)_/g, "<em>$1</em>")
+    .replace(/~([^~]+)~/g, "<del>$1</del>")
+    .replace(/`([^`]+)`/g, "<code class='bg-black/30 px-1 py-0.5 rounded text-xs'>$1</code>");
+    
+  return <span dangerouslySetInnerHTML={{ __html: formatted }} />;
+}
+
 function MessageContent({ message }: { message: Message }) {
   switch (message.content_type) {
     case "text":
       return (
-        <p className="whitespace-pre-wrap break-words text-sm">
-          {message.content_text}
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed tracking-wide">
+          {formatMessageText(message.content_text || "")}
         </p>
       );
 
     case "image":
       return (
-        <div>
+        <div className="space-y-1.5">
           {message.media_url ? (
             <MediaImage url={message.media_url} alt="Shared image" />
           ) : (
             <MediaUnavailable label="Image" />
           )}
           {message.content_text && (
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm">
-              {message.content_text}
+            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+              {formatMessageText(message.content_text)}
             </p>
           )}
         </div>
@@ -143,19 +164,19 @@ function MessageContent({ message }: { message: Message }) {
 
     case "video":
       return (
-        <div>
+        <div className="space-y-1.5">
           {message.media_url ? (
             <video
               src={message.media_url}
               controls
-              className="max-h-64 max-w-60 rounded-lg"
+              className="max-h-64 max-w-60 rounded-lg shadow-inner"
             />
           ) : (
             <MediaUnavailable label="Video" />
           )}
           {message.content_text && (
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm">
-              {message.content_text}
+            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+              {formatMessageText(message.content_text)}
             </p>
           )}
         </div>
@@ -181,10 +202,10 @@ function MessageContent({ message }: { message: Message }) {
           href={message.media_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-lg bg-slate-700/50 px-3 py-2 text-sm hover:bg-slate-700"
+          className="flex items-center gap-2.5 rounded-xl bg-slate-900/50 border border-slate-800 px-3.5 py-2.5 text-sm hover:bg-slate-950 transition-colors"
         >
           <FileText className="h-5 w-5 shrink-0 text-slate-400" />
-          <span className="truncate">
+          <span className="truncate max-w-[200px] font-medium text-slate-200">
             {message.content_text || "Document"}
           </span>
         </a>
@@ -192,16 +213,14 @@ function MessageContent({ message }: { message: Message }) {
 
     case "template":
       return (
-        <div>
-          <span className="mb-1 inline-flex items-center gap-1 rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-400">
             <LayoutTemplate className="h-3 w-3" />
             Template
           </span>
-          {message.content_text && (
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm">
-              {message.content_text}
-            </p>
-          )}
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-100">
+            {formatMessageText(message.content_text || "")}
+          </p>
         </div>
       );
 
@@ -209,23 +228,18 @@ function MessageContent({ message }: { message: Message }) {
       return (
         <div className="flex items-center gap-2 text-sm">
           <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
-          <span>{message.content_text || "Location shared"}</span>
+          <span className="font-medium text-slate-300">{message.content_text || "Location shared"}</span>
         </div>
       );
 
     case "interactive": {
-      // Customer tapped a reply button or list row on a message the bot
-      // sent. We show the tapped option's title (already in content_text,
-      // set by parseMessageContent in the webhook) with a small affordance
-      // so agents reading the inbox can tell at a glance that this is a
-      // tap rather than the customer typing the same words.
       return (
-        <div className="flex flex-col gap-0.5">
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+        <div className="flex flex-col gap-1.5">
+          <span className="inline-flex w-fit items-center gap-1 rounded bg-slate-900/50 border border-slate-800/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">
             <CornerDownLeft className="h-3 w-3" />
-            Button reply
+            Button Reply
           </span>
-          <p className="whitespace-pre-wrap break-words text-sm">
+          <p className="whitespace-pre-wrap break-words text-sm font-semibold text-emerald-400 leading-relaxed bg-emerald-500/5 px-2.5 py-1.5 rounded-lg border border-emerald-500/10">
             {message.content_text || "[Interactive reply]"}
           </p>
         </div>
@@ -234,8 +248,8 @@ function MessageContent({ message }: { message: Message }) {
 
     default:
       return (
-        <p className="whitespace-pre-wrap break-words text-sm">
-          {message.content_text || "[Unsupported message type]"}
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+          {formatMessageText(message.content_text || "[Unsupported message type]")}
         </p>
       );
   }
@@ -256,16 +270,16 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        "flex flex-col",
+        "flex flex-col min-w-0 w-full",
         isAgent ? "items-end" : "items-start",
       )}
     >
       <div
         className={cn(
-          "relative rounded-2xl px-3 py-2",
+          "relative max-w-full min-w-0 rounded-2xl px-3.5 py-2.5 shadow-md",
           isAgent
-            ? "rounded-br-md bg-primary text-primary-foreground"
-            : "rounded-bl-md bg-slate-800 text-slate-100",
+            ? "rounded-br-sm bg-gradient-to-br from-emerald-600 to-emerald-700 text-white"
+            : "rounded-bl-sm bg-slate-800/90 text-slate-100 ring-1 ring-slate-700/50",
         )}
       >
         {reply && (
@@ -278,7 +292,10 @@ export function MessageBubble({
             isAgent ? "justify-end" : "justify-start",
           )}
         >
-          <span className="text-[10px] text-white/60">{time}</span>
+          <span className={cn(
+            "text-[10px]",
+            isAgent ? "text-emerald-100/70" : "text-slate-500"
+          )}>{time}</span>
           {isAgent && <StatusIcon status={message.status} />}
         </div>
       </div>

@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -147,48 +146,54 @@ export function ConversationList({
     // w-full on mobile so the list occupies the whole viewport when it's
     // the single pane showing; fixed 320px on desktop where it shares the
     // row with the thread + contact sidebar.
-    <div className="flex h-full w-full flex-col border-r border-slate-800 bg-slate-900 lg:w-80">
+    <div className="flex h-full w-full flex-col border-r border-slate-800/80 bg-slate-900/95 lg:w-80">
       {/* Search + Filter */}
-      <div className="space-y-2 border-b border-slate-800 p-3">
+      <div className="space-y-3 border-b border-slate-800/60 p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <Input
             value={search}
             onChange={handleSearchChange}
             placeholder="Search conversations..."
-            className="border-slate-700 bg-slate-800 pl-9 text-sm text-white placeholder-slate-500 focus:border-primary/50"
+            className="h-9 border-slate-700/60 bg-slate-800/60 pl-9 text-sm text-white placeholder-slate-500 transition-all focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
           />
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-slate-400 hover:text-white rounded-md hover:bg-slate-800">
-              {activeFilter?.label ?? "All"}
-              <ChevronDown className="h-3 w-3" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="border-slate-700 bg-slate-800"
-          >
-            {FILTER_OPTIONS.map((opt) => (
-              <DropdownMenuItem
-                key={opt.value}
-                onClick={() => setFilter(opt.value)}
-                className={cn(
-                  "text-sm",
-                  filter === opt.value
-                    ? "text-primary"
-                    : "text-slate-300"
-                )}
-              >
-                {opt.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center justify-between">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2.5 text-[11px] font-semibold text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/80 transition-all border border-slate-800 bg-slate-900/50 shadow-sm">
+                <span>Filter: {activeFilter?.label ?? "All"}</span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="border-slate-700 bg-slate-800/95 shadow-xl backdrop-blur-md"
+            >
+              {FILTER_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setFilter(opt.value)}
+                  className={cn(
+                    "text-xs px-3 py-1.5 transition-colors cursor-pointer",
+                    filter === opt.value
+                      ? "text-emerald-400 font-semibold bg-emerald-500/10"
+                      : "text-slate-300 hover:bg-slate-700/50"
+                  )}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <span className="text-[10px] text-slate-500 font-medium">
+            {filtered.length} active
+          </span>
+        </div>
       </div>
 
       {/* Conversation Items */}
-      <ScrollArea className="flex-1">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -209,7 +214,7 @@ export function ConversationList({
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -235,59 +240,88 @@ function ConversationItem({
 
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), {
-        addSuffix: false,
+        addSuffix: true,
       })
+        .replace("about ", "")
+        .replace("less than a minute ago", "just now")
     : "";
 
   return (
-    <button
-      onClick={handleClick}
-      className={cn(
-        "flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-slate-800/50",
-        isActive && "border-l-2 border-primary bg-slate-800/70"
-      )}
-    >
-      {/* Avatar */}
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-medium text-white">
-        {contact?.avatar_url ? (
-          <img
-            src={contact.avatar_url}
-            alt={displayName}
-            className="h-10 w-10 rounded-full object-cover"
-          />
-        ) : (
-          initials
+    <div className="px-2 py-1">
+      <button
+        onClick={handleClick}
+        className={cn(
+          "relative flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all duration-200",
+          "hover:bg-slate-800/40 hover:shadow-sm active:scale-[0.99]",
+          isActive
+            ? "bg-slate-800/80 shadow-md ring-1 ring-slate-700/50 backdrop-blur-sm"
+            : "bg-transparent"
         )}
-      </div>
+      >
+        {/* Left Active Marker Accent */}
+        {isActive && (
+          <div className="absolute left-0 top-3 bottom-3 w-1.5 rounded-r-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+        )}
 
-      {/* Content */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium text-white">
-            {displayName}
-          </span>
-          <span className="shrink-0 text-[10px] text-slate-500">{timeAgo}</span>
+        {/* Avatar */}
+        <div className="relative shrink-0">
+          <div className={cn(
+            "flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold shadow-inner",
+            isActive ? "ring-2 ring-emerald-500/30" : "ring-1 ring-slate-800",
+            contact?.avatar_url
+              ? "bg-slate-800"
+              : "bg-gradient-to-br from-emerald-600/80 to-teal-800/80 text-white"
+          )}>
+            {contact?.avatar_url ? (
+              <img
+                src={contact.avatar_url}
+                alt={displayName}
+                className="h-11 w-11 rounded-full object-cover"
+              />
+            ) : (
+              initials
+            )}
+          </div>
+          {/* Status Indicator inside Avatar */}
+          <span
+            className={cn(
+              "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 shadow-sm",
+              STATUS_COLORS[conversation.status]
+            )}
+            title={conversation.status}
+          />
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className="truncate text-xs text-slate-400">
-            {conversation.last_message_text || "No messages yet"}
-          </p>
-          <div className="flex shrink-0 items-center gap-1.5">
+
+        {/* Content */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn(
+              "truncate text-sm font-medium transition-colors",
+              isActive ? "text-white font-semibold" : "text-slate-200"
+            )}>
+              {displayName}
+            </span>
+            <span className="shrink-0 text-[10px] font-medium text-slate-500 tabular-nums">
+              {timeAgo}
+            </span>
+          </div>
+          
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className={cn(
+              "truncate text-xs",
+              isActive ? "text-slate-300" : "text-slate-400"
+            )}>
+              {conversation.last_message_text || "No messages yet"}
+            </p>
+            
             {conversation.unread_count > 0 && (
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white shadow-sm shadow-emerald-500/20">
                 {conversation.unread_count}
               </span>
             )}
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                STATUS_COLORS[conversation.status]
-              )}
-              title={conversation.status}
-            />
           </div>
         </div>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }

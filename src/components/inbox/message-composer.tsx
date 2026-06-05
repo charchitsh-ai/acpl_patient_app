@@ -77,7 +77,7 @@ export function MessageComposer({
   );
 
   return (
-    <div className="border-t border-slate-800 bg-slate-900 p-3">
+    <div className="border-t border-slate-800 bg-slate-900/95 px-3 py-3 backdrop-blur-sm">
       {replyTo && (
         <div className="mb-2">
           <ReplyQuote
@@ -128,14 +128,14 @@ export function MessageComposer({
           disabled={sessionExpired}
           rows={1}
           className={cn(
-            "flex-1 resize-none rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-colors focus:border-primary/50",
+            "flex-1 resize-none rounded-xl border border-slate-700/80 bg-slate-800/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20",
             sessionExpired && "cursor-not-allowed opacity-50"
           )}
         />
 
         <Button
           size="sm"
-          className="h-9 w-9 shrink-0 bg-primary p-0 hover:bg-primary/90 disabled:opacity-40"
+          className="h-9 w-9 shrink-0 rounded-xl bg-emerald-600 p-0 shadow-md hover:bg-emerald-500 disabled:opacity-40 transition-all"
           disabled={!text.trim() || sessionExpired || sending}
           onClick={handleSend}
         >

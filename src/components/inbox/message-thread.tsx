@@ -129,7 +129,7 @@ const STATUS_OPTIONS: { label: string; value: ConversationStatus; color: string 
  * if we ever switch the asset, both spots update together.
  */
 const DOODLE_BG_CLASSES =
-  "bg-slate-950 bg-[url('/inbox-doodle.svg')] bg-repeat";
+  "bg-slate-950/95 relative before:absolute before:inset-0 before:bg-[url('/inbox-doodle.svg')] before:bg-repeat before:opacity-[0.03] before:pointer-events-none before:z-0";
 
 export function MessageThread({
   conversation,
@@ -679,15 +679,17 @@ export function MessageThread({
   if (!conversation || !contact) {
     return (
       <div className={cn("flex flex-1 flex-col items-center justify-center", DOODLE_BG_CLASSES)}>
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
-          <MessageSquare className="h-8 w-8 text-slate-600" />
+        <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80 shadow-md ring-1 ring-slate-700/35 mb-4">
+            <MessageSquare className="h-8 w-8 text-slate-500" />
+          </div>
+          <h3 className="text-sm font-semibold text-slate-200">
+            Select a conversation
+          </h3>
+          <p className="mt-1.5 text-xs text-slate-400 max-w-[240px] leading-relaxed">
+            Choose a conversation from the left to start messaging
+          </p>
         </div>
-        <h3 className="mt-4 text-sm font-medium text-slate-400">
-          Select a conversation
-        </h3>
-        <p className="mt-1 text-xs text-slate-600">
-          Choose a conversation from the left to start messaging
-        </p>
       </div>
     );
   }
@@ -704,10 +706,10 @@ export function MessageThread({
     : "Assign";
 
   return (
-    <div className={cn("flex flex-1 flex-col", DOODLE_BG_CLASSES)}>
+    <div className={cn("flex flex-1 flex-col min-h-0", DOODLE_BG_CLASSES)}>
       {/* Header — solid bg-slate-900 sits on top of the doodle so the
           name/avatar/dropdowns stay legible. */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-3 sm:px-4">
+      <div className="relative z-10 flex items-center justify-between gap-2 border-b border-slate-800/80 bg-slate-900/95 px-3 py-3 sm:px-4 backdrop-blur-sm shadow-sm">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {/* Back-to-list button — mobile only. Hidden on lg+ where the
               conversation list is always visible next to the thread. */}
@@ -848,7 +850,7 @@ export function MessageThread({
       </div>
 
       {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-4 scroll-smooth">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -861,17 +863,17 @@ export function MessageThread({
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {messageGroups.map((group) => (
               <div key={group.date}>
                 {/* Date separator */}
                 <div className="mb-4 flex items-center justify-center">
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-[10px] font-medium text-slate-400">
+                  <span className="rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-medium text-slate-400 backdrop-blur-sm ring-1 ring-slate-700/40 shadow-sm">
                     {formatDateSeparator(group.date)}
                   </span>
                 </div>
                 {/* Messages */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {group.messages.map((msg) => {
                     const parent = msg.reply_to_message_id
                       ? messagesById.get(msg.reply_to_message_id)
@@ -921,14 +923,16 @@ export function MessageThread({
       </div>
 
       {/* Composer */}
-      <MessageComposer
-        conversationId={conversation.id}
-        sessionExpired={sessionInfo.expired}
-        onSend={handleSend}
-        onOpenTemplates={handleOpenTemplates}
-        replyTo={replyTo}
-        onClearReply={() => setReplyTo(null)}
-      />
+      <div className="relative z-10">
+        <MessageComposer
+          conversationId={conversation.id}
+          sessionExpired={sessionInfo.expired}
+          onSend={handleSend}
+          onOpenTemplates={handleOpenTemplates}
+          replyTo={replyTo}
+          onClearReply={() => setReplyTo(null)}
+        />
+      </div>
 
       <TemplatePicker
         open={templateModalOpen}
