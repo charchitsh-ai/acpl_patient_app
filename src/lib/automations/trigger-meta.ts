@@ -35,6 +35,18 @@ export const TRIGGER_META: Record<AutomationTriggerType, TriggerMeta> = {
     label: 'Time-Based',
     pillClass: 'border-slate-500/30 bg-slate-500/10 text-slate-300',
   },
+  fb_lead_captured: {
+    label: 'FB Lead Captured',
+    pillClass: 'border-blue-600/30 bg-blue-600/10 text-blue-400',
+  },
+  google_sheet_row: {
+    label: 'Google Sheet Row',
+    pillClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+  },
+  email_received: {
+    label: 'Email Received',
+    pillClass: 'border-orange-500/30 bg-orange-500/10 text-orange-400',
+  },
 }
 
 export function triggerMeta(t: AutomationTriggerType | string): TriggerMeta {

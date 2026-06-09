@@ -13,7 +13,11 @@ import type {
   WaitStepConfig,
   CreateDealStepConfig,
   AssignConversationStepConfig,
+  SendEmailStepConfig,
 } from '@/types'
+
+import { engineSendEmail } from './email'
+
 import { supabaseAdmin } from './admin-client'
 import { engineSendText, engineSendTemplate } from './meta-send'
 
@@ -441,6 +445,21 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         .eq('user_id', args.automation.user_id)
         .eq('contact_id', args.contactId)
       return 'conversation closed'
+    }
+
+    case 'send_email': {
+      const cfg = step.step_config as SendEmailStepConfig;
+      if (!cfg.to) throw new Error('send_email needs recipient(s)');
+      if (!cfg.subject) throw new Error('send_email needs subject');
+      if (!cfg.body) throw new Error('send_email needs body');
+      const messageId = await engineSendEmail(
+        args.automation.user_id,
+        cfg.to,
+        cfg.subject,
+        cfg.body,
+        cfg.html
+      );
+      return `email sent (id=${messageId})`;
     }
 
     default:

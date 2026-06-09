@@ -4,16 +4,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { Conversation, ConversationStatus } from "@/types";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, MessageSquarePlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -35,7 +28,9 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
   closed: "bg-slate-500",
 };
 
-const FILTER_OPTIONS: { label: string; value: ConversationStatus | "all" }[] = [
+type FilterValue = ConversationStatus | "all";
+
+const FILTER_TABS: { label: string; value: FilterValue }[] = [
   { label: "All", value: "all" },
   { label: "Open", value: "open" },
   { label: "Pending", value: "pending" },
@@ -50,7 +45,7 @@ export function ConversationList({
   resyncToken = 0,
 }: ConversationListProps) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<ConversationStatus | "all">("all");
+  const [filter, setFilter] = useState<FilterValue>("all");
   const [loading, setLoading] = useState(true);
 
   // Keep the latest callback in a ref so the fetch effect below can
@@ -140,70 +135,102 @@ export function ConversationList({
     [onSelect]
   );
 
-  const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
-
   return (
     // w-full on mobile so the list occupies the whole viewport when it's
     // the single pane showing; fixed 320px on desktop where it shares the
     // row with the thread + contact sidebar.
-    <div className="flex h-full w-full flex-col border-r border-slate-800/80 bg-slate-900/95 lg:w-80">
-      {/* Search + Filter */}
-      <div className="space-y-3 border-b border-slate-800/60 p-4">
+    <div className="flex h-full w-full flex-col border-r border-slate-800/80 bg-slate-900/98">
+
+      {/* ── Panel header ─────────────────────────────────────────── */}
+      <div className="shrink-0 border-b border-slate-800/60 px-4 py-3">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Conversations</h2>
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+              {filtered.length}
+            </span>
+            <button
+              type="button"
+              title="New conversation"
+              aria-label="Start new conversation"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-800 hover:text-white"
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
           <Input
             value={search}
             onChange={handleSearchChange}
-            placeholder="Search conversations..."
-            className="h-9 border-slate-700/60 bg-slate-800/60 pl-9 text-sm text-white placeholder-slate-500 transition-all focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+            placeholder="Search conversations…"
+            aria-label="Search conversations"
+            className="h-8 border-slate-700/60 bg-slate-800/60 pl-8 text-xs text-white placeholder-slate-500 transition-all focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2.5 text-[11px] font-semibold text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/80 transition-all border border-slate-800 bg-slate-900/50 shadow-sm">
-                <span>Filter: {activeFilter?.label ?? "All"}</span>
-                <ChevronDown className="h-3 w-3 opacity-60" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="border-slate-700 bg-slate-800/95 shadow-xl backdrop-blur-md"
-            >
-              {FILTER_OPTIONS.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => setFilter(opt.value)}
-                  className={cn(
-                    "text-xs px-3 py-1.5 transition-colors cursor-pointer",
-                    filter === opt.value
-                      ? "text-emerald-400 font-semibold bg-emerald-500/10"
-                      : "text-slate-300 hover:bg-slate-700/50"
-                  )}
-                >
-                  {opt.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <span className="text-[10px] text-slate-500 font-medium">
-            {filtered.length} active
-          </span>
+        {/* ── Pill filter tabs ───────────────────────────────────── */}
+        <div className="mt-2.5 flex gap-1" role="tablist" aria-label="Filter conversations">
+          {FILTER_TABS.map((tab) => {
+            const count =
+              tab.value === "all"
+                ? conversations.length
+                : conversations.filter((c) => c.status === tab.value).length;
+            const isActive = filter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setFilter(tab.value)}
+                className={cn(
+                  "flex h-6 items-center gap-1 rounded-full px-2.5 text-[10px] font-semibold transition-all",
+                  isActive
+                    ? "bg-primary/15 text-primary ring-1 ring-primary/30"
+                    : "text-slate-500 hover:bg-slate-800/60 hover:text-slate-300"
+                )}
+              >
+                {tab.label}
+                {count > 0 && (
+                  <span
+                    className={cn(
+                      "rounded-full px-1 tabular-nums",
+                      isActive ? "text-primary/80" : "text-slate-600"
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Conversation Items */}
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      {/* ── Conversation Items ─────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar" role="list" aria-label="Conversation list">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
+          <ConversationListSkeleton />
         ) : filtered.length === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <p className="text-sm text-slate-500">No conversations found</p>
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-800/60 ring-1 ring-slate-700/40">
+              <Search className="h-5 w-5 text-slate-600" />
+            </div>
+            <p className="mt-3 text-sm font-medium text-slate-500">
+              {search ? "No results found" : "No conversations yet"}
+            </p>
+            <p className="mt-1 text-xs text-slate-600">
+              {search
+                ? "Try a different search term"
+                : "Conversations will appear here when contacts message you"}
+            </p>
           </div>
         ) : (
-          <div className="flex flex-col">
+          <div className="flex flex-col py-1" role="list">
             {filtered.map((conv) => (
               <ConversationItem
                 key={conv.id}
@@ -219,6 +246,24 @@ export function ConversationList({
   );
 }
 
+// ── Skeleton loading ──────────────────────────────────────────────────
+function ConversationListSkeleton() {
+  return (
+    <div className="flex flex-col gap-px py-2 px-2">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-3">
+          <div className="skeleton h-11 w-11 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <div className="skeleton h-3 w-3/4 rounded-full" />
+            <div className="skeleton h-2.5 w-full rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Conversation Item ─────────────────────────────────────────────────
 interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
@@ -247,31 +292,36 @@ function ConversationItem({
     : "";
 
   return (
-    <div className="px-2 py-1">
+    <div className="px-2 py-0.5" role="listitem">
       <button
         onClick={handleClick}
+        aria-current={isActive ? "true" : undefined}
         className={cn(
-          "relative flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all duration-200",
-          "hover:bg-slate-800/40 hover:shadow-sm active:scale-[0.99]",
+          "relative flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all duration-150",
+          "hover:bg-slate-800/40 active:scale-[0.99]",
           isActive
-            ? "bg-slate-800/80 shadow-md ring-1 ring-slate-700/50 backdrop-blur-sm"
-            : "bg-transparent"
+            ? "bg-slate-800/80 shadow-md ring-1 ring-slate-700/50"
+            : "bg-transparent",
         )}
       >
-        {/* Left Active Marker Accent */}
+        {/* Active left accent bar */}
         {isActive && (
-          <div className="absolute left-0 top-3 bottom-3 w-1.5 rounded-r-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+          <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-primary shadow-[0_0_8px_var(--color-primary)]" />
         )}
 
         {/* Avatar */}
         <div className="relative shrink-0">
-          <div className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold shadow-inner",
-            isActive ? "ring-2 ring-emerald-500/30" : "ring-1 ring-slate-800",
-            contact?.avatar_url
-              ? "bg-slate-800"
-              : "bg-gradient-to-br from-emerald-600/80 to-teal-800/80 text-white"
-          )}>
+          <div
+            className={cn(
+              "flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold shadow-inner",
+              isActive
+                ? "ring-2 ring-primary/30"
+                : "ring-1 ring-slate-800",
+              contact?.avatar_url
+                ? "bg-slate-800"
+                : "bg-gradient-to-br from-primary/70 to-emerald-600/70 text-white",
+            )}
+          >
             {contact?.avatar_url ? (
               <img
                 src={contact.avatar_url}
@@ -282,11 +332,11 @@ function ConversationItem({
               initials
             )}
           </div>
-          {/* Status Indicator inside Avatar */}
+          {/* Status dot */}
           <span
             className={cn(
               "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 shadow-sm",
-              STATUS_COLORS[conversation.status]
+              STATUS_COLORS[conversation.status],
             )}
             title={conversation.status}
           />
@@ -294,29 +344,39 @@ function ConversationItem({
 
         {/* Content */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className={cn(
-              "truncate text-sm font-medium transition-colors",
-              isActive ? "text-white font-semibold" : "text-slate-200"
-            )}>
+          <div className="flex items-baseline justify-between gap-2">
+            <span
+              className={cn(
+                "truncate text-sm transition-colors",
+                isActive
+                  ? "font-semibold text-white"
+                  : "font-medium text-slate-200",
+              )}
+            >
               {displayName}
             </span>
             <span className="shrink-0 text-[10px] font-medium text-slate-500 tabular-nums">
               {timeAgo}
             </span>
           </div>
-          
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <p className={cn(
-              "truncate text-xs",
-              isActive ? "text-slate-300" : "text-slate-400"
-            )}>
+
+          <div className="mt-0.5 flex items-center justify-between gap-2">
+            <p
+              className={cn(
+                "truncate text-xs leading-relaxed",
+                conversation.unread_count > 0
+                  ? "font-medium text-slate-200"
+                  : isActive
+                  ? "text-slate-300"
+                  : "text-slate-500",
+              )}
+            >
               {conversation.last_message_text || "No messages yet"}
             </p>
-            
+
             {conversation.unread_count > 0 && (
-              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white shadow-sm shadow-emerald-500/20">
-                {conversation.unread_count}
+              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground shadow-sm shadow-primary/30">
+                {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
               </span>
             )}
           </div>

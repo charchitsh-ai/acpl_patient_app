@@ -492,6 +492,8 @@ export function WhatsAppConfig() {
                   <Copy className="size-4" />
                 </Button>
               </div>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Google Sheets Webhook */}

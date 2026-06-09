@@ -131,6 +131,47 @@ const STATUS_OPTIONS: { label: string; value: ConversationStatus; color: string 
 const DOODLE_BG_CLASSES =
   "bg-slate-950/95 relative before:absolute before:inset-0 before:bg-[url('/inbox-doodle.svg')] before:bg-repeat before:opacity-[0.03] before:pointer-events-none before:z-0";
 
+/**
+ * Skeleton loading placeholder for the message area.
+ * Shows shimmer bubbles while the first fetch is in flight.
+ */
+function MessageSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 px-1 py-2">
+      {/* Incoming */}
+      <div className="flex items-end gap-2">
+        <div className="skeleton h-8 w-8 shrink-0 rounded-full" />
+        <div className="space-y-1.5">
+          <div className="skeleton h-10 w-52 rounded-2xl rounded-bl-sm" />
+          <div className="skeleton h-2.5 w-20 rounded-full" />
+        </div>
+      </div>
+      {/* Outgoing */}
+      <div className="flex flex-row-reverse items-end">
+        <div className="flex flex-col items-end space-y-1.5">
+          <div className="skeleton h-14 w-64 rounded-2xl rounded-br-sm" />
+          <div className="skeleton h-2.5 w-16 rounded-full" />
+        </div>
+      </div>
+      {/* Incoming */}
+      <div className="flex items-end gap-2">
+        <div className="skeleton h-8 w-8 shrink-0 rounded-full" />
+        <div className="space-y-1.5">
+          <div className="skeleton h-8 w-40 rounded-2xl rounded-bl-sm" />
+          <div className="skeleton h-2.5 w-14 rounded-full" />
+        </div>
+      </div>
+      {/* Outgoing */}
+      <div className="flex flex-row-reverse items-end">
+        <div className="flex flex-col items-end space-y-1.5">
+          <div className="skeleton h-10 w-48 rounded-2xl rounded-br-sm" />
+          <div className="skeleton h-2.5 w-12 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MessageThread({
   conversation,
   contact,
@@ -150,6 +191,8 @@ export function MessageThread({
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
+  // Show scroll-to-bottom FAB when user scrolls up more than 200px
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   // Purely visual spin state for the manual-refresh button. The actual
   // refetch is fire-and-forget through `onRefresh` (which bumps the
   // parent's resyncToken); the 700ms spin is just feedback so the click
@@ -173,6 +216,20 @@ export function MessageThread({
     }, 700);
   }, [isRefreshing, onRefresh]);
   const [replyTo, setReplyTo] = useState<ReplyDraft | null>(null);
+
+  // Track scroll position to show/hide scroll-to-bottom button
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distFromBottom > 200);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, []);
 
   // Profiles are bounded by RLS to rows the current user is allowed to
   // see — today that's just the current user, but the dropdown keeps the
@@ -706,37 +763,45 @@ export function MessageThread({
     : "Assign";
 
   return (
-    <div className={cn("flex flex-1 flex-col min-h-0", DOODLE_BG_CLASSES)}>
-      {/* Header — solid bg-slate-900 sits on top of the doodle so the
-          name/avatar/dropdowns stay legible. */}
-      <div className="relative z-10 flex items-center justify-between gap-2 border-b border-slate-800/80 bg-slate-900/95 px-3 py-3 sm:px-4 backdrop-blur-sm shadow-sm">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          {/* Back-to-list button — mobile only. Hidden on lg+ where the
-              conversation list is always visible next to the thread. */}
+    <div className={cn("flex flex-1 flex-col min-h-0 min-w-0 w-full", DOODLE_BG_CLASSES)}>
+      {/* ── Thread Header ──────────────────────────────────────────────
+          Solid bg sits on top of the doodle pattern for legibility.
+          Left group: back + avatar + name + session badge.
+          Right group: refresh + status + assign (all shrink-0, no wrap). */}
+      <div className="relative z-10 flex items-center justify-between gap-3 border-b border-slate-800/80 bg-slate-900/98 px-3 py-2.5 sm:px-4 backdrop-blur-sm shadow-sm">
+        {/* ── LEFT ── */}
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/* Back-to-list button — mobile only */}
           {onBack && (
             <button
               type="button"
               onClick={onBack}
               aria-label="Back to conversations"
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-white lg:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-slate-800 hover:text-white lg:hidden"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
           )}
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-medium text-white">
-            {displayName.charAt(0).toUpperCase()}
+          {/* Avatar */}
+          <div className="relative shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-emerald-600/70 text-sm font-bold text-white ring-2 ring-primary/20 shadow-md">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-emerald-500" />
           </div>
+          {/* Name + phone */}
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-white">{displayName}</h2>
-            <p className="truncate text-xs text-slate-400">{contact.phone}</p>
+            <h2 className="truncate text-sm font-semibold text-white leading-tight">{displayName}</h2>
+            <p className="truncate text-[11px] text-slate-500">{contact.phone}</p>
           </div>
-          {/* Session timer badge — hidden on the narrowest phones so
-              the name + back arrow keep their room. */}
+          {/* Session timer badge */}
           <Badge
             variant="outline"
             className={cn(
-              "ml-1 hidden gap-1 border-slate-700 text-[10px] sm:inline-flex sm:ml-2",
-              sessionInfo.expired ? "text-red-400" : "text-primary"
+              "ml-1 hidden shrink-0 gap-1 border-slate-700/60 text-[10px] sm:inline-flex",
+              sessionInfo.expired
+                ? "border-red-500/20 bg-red-500/5 text-red-400"
+                : "border-primary/20 bg-primary/5 text-primary"
             )}
           >
             <Clock className="h-3 w-3" />
@@ -744,47 +809,39 @@ export function MessageThread({
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Manual refresh — forces a refetch of the messages + the
-              conversation list (the parent bumps its resyncToken). Useful
-              when realtime missed an event or the agent just wants to be
-              sure nothing's stale. Only rendered when the parent wires
-              up `onRefresh`. */}
+        {/* ── RIGHT ── */}
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Manual refresh */}
           {onRefresh && (
             <button
               type="button"
               onClick={handleRefreshClick}
               disabled={isRefreshing}
               aria-label="Refresh conversation"
-              title="Refresh"
-              className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-800 hover:text-white disabled:opacity-60",
-              )}
+              title="Refresh messages"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-800 hover:text-white disabled:opacity-50"
             >
-              <RefreshCw
-                className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")}
-              />
+              <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
             </button>
           )}
 
           {/* Status dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger className={cn(
-                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-slate-800",
-                  currentStatus?.color ?? "text-slate-400"
-                )}>
-                {currentStatus?.label ?? "Status"}
-                <ChevronDown className="h-3 w-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="border-slate-700 bg-slate-800"
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-slate-700/60 bg-slate-800/50 px-2.5 text-xs font-medium transition-colors hover:bg-slate-800",
+                currentStatus?.color ?? "text-slate-400"
+              )}
             >
+              {currentStatus?.label ?? "Status"}
+              <ChevronDown className="h-3 w-3 opacity-70" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="border-slate-700 bg-slate-800/95 backdrop-blur-sm">
               {STATUS_OPTIONS.map((opt) => (
                 <DropdownMenuItem
                   key={opt.value}
                   onClick={() => handleStatusChange(opt.value)}
-                  className={cn("text-sm", opt.color)}
+                  className={cn("text-sm font-medium", opt.color)}
                 >
                   {opt.label}
                 </DropdownMenuItem>
@@ -796,18 +853,15 @@ export function MessageThread({
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
-                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-slate-800",
+                "inline-flex h-7 items-center justify-center gap-1 rounded-lg border border-slate-700/60 bg-slate-800/50 px-2.5 text-xs font-medium transition-colors hover:bg-slate-800",
                 assignedAgentId ? "text-primary" : "text-slate-400"
               )}
             >
               <UserPlus className="h-3 w-3" />
               <span className="hidden sm:inline">{assignLabel}</span>
-              <ChevronDown className="h-3 w-3" />
+              <ChevronDown className="h-3 w-3 opacity-70" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="border-slate-700 bg-slate-800"
-            >
+            <DropdownMenuContent align="end" className="border-slate-700 bg-slate-800/95 backdrop-blur-sm">
               {profiles.length === 0 ? (
                 <DropdownMenuItem disabled className="text-sm text-slate-500">
                   No teammates available
@@ -819,10 +873,7 @@ export function MessageThread({
                     <DropdownMenuItem
                       key={p.id}
                       onClick={() => handleAssignChange(p.user_id)}
-                      className={cn(
-                        "text-sm",
-                        isSelected ? "text-primary" : "text-slate-300"
-                      )}
+                      className={cn("text-sm", isSelected ? "text-primary" : "text-slate-300")}
                     >
                       <span className="flex-1">
                         {p.full_name}
@@ -849,31 +900,41 @@ export function MessageThread({
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div ref={scrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-4 scroll-smooth">
+      {/* ── Messages Area ──────────────────────────────────────────── */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="relative z-10 flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-3 py-4 sm:px-5"
+        aria-label="Message list"
+        role="log"
+        aria-live="polite"
+      >
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
+          <MessageSkeleton />
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <p className="text-sm text-slate-500">No messages yet</p>
-            <p className="text-xs text-slate-600">
-              Send a template to start the conversation
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800/60 ring-1 ring-slate-700/40 shadow-md">
+              <MessageSquare className="h-6 w-6 text-slate-500" />
+            </div>
+            <p className="mt-3 text-sm font-semibold text-slate-300">No messages yet</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Send a template message to start the conversation
             </p>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {messageGroups.map((group) => (
               <div key={group.date}>
                 {/* Date separator */}
-                <div className="mb-4 flex items-center justify-center">
-                  <span className="rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-medium text-slate-400 backdrop-blur-sm ring-1 ring-slate-700/40 shadow-sm">
+                <div className="my-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-800/80" />
+                  <span className="shrink-0 rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-semibold text-slate-500 ring-1 ring-slate-700/50 shadow-sm backdrop-blur-sm">
                     {formatDateSeparator(group.date)}
                   </span>
+                  <div className="h-px flex-1 bg-slate-800/80" />
                 </div>
                 {/* Messages */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   {group.messages.map((msg) => {
                     const parent = msg.reply_to_message_id
                       ? messagesById.get(msg.reply_to_message_id)
@@ -921,6 +982,18 @@ export function MessageThread({
           </div>
         )}
       </div>
+
+      {/* ── Scroll to Bottom FAB ────────────────────────────────────── */}
+      {showScrollBtn && (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          aria-label="Scroll to latest message"
+          className="absolute bottom-20 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 shadow-lg ring-1 ring-slate-700/60 transition-all hover:bg-slate-700 hover:scale-105 active:scale-95"
+        >
+          <ChevronDown className="h-4 w-4 text-slate-300" />
+        </button>
+      )}
 
       {/* Composer */}
       <div className="relative z-10">

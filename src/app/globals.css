@@ -320,4 +320,41 @@ html[data-theme="light"] {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
-}
+}
+
+/* ============================================================
+ * SKELETON / SHIMMER
+ * Used in message-thread loading state
+ * ============================================================ */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    oklch(0.22 0.01 150) 25%,
+    oklch(0.28 0.01 150) 50%,
+    oklch(0.22 0.01 150) 75%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 0.5rem;
+}
+
+/* ============================================================
+ * INBOX LAYOUT HELPERS
+ * Allows the inbox page to escape the shell's default padding
+ * ============================================================ */
+.inbox-no-pad {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Smooth panel collapse transition */
+.panel-collapse-enter {
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 220ms ease;
+}
+

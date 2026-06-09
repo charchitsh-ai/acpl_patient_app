@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, KeyboardEvent } from "react";
-import { Send, LayoutTemplate } from "lucide-react";
+import { Send, LayoutTemplate, Smile, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ReplyQuote } from "./reply-quote";
@@ -38,8 +38,8 @@ export function MessageComposer({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    // Max 4 lines (~96px)
-    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+    // Max 5 lines (~120px)
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }, []);
 
   const handleSend = useCallback(async () => {
@@ -76,8 +76,15 @@ export function MessageComposer({
     [adjustHeight]
   );
 
+  const canSend = !!text.trim() && !sessionExpired && !sending;
+
   return (
-    <div className="border-t border-slate-800 bg-slate-900/95 px-3 py-3 backdrop-blur-sm">
+    <div
+      className="shrink-0 border-t border-slate-800/80 bg-slate-900/98 px-3 py-3 backdrop-blur-sm"
+      role="form"
+      aria-label="Message composer"
+    >
+      {/* ── Reply quote preview ──────────────────────────────────── */}
       {replyTo && (
         <div className="mb-2">
           <ReplyQuote
@@ -87,34 +94,72 @@ export function MessageComposer({
           />
         </div>
       )}
+
+      {/* ── Session expired banner ───────────────────────────────── */}
       {sessionExpired && (
-        <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2">
-          <p className="text-xs text-amber-400">
-            24-hour session expired. Use a template to re-engage.
-          </p>
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/8 px-3.5 py-2.5">
+          <div>
+            <p className="text-xs font-semibold text-amber-400">
+              24-hour session expired
+            </p>
+            <p className="text-[10px] text-amber-500/70 mt-0.5">
+              Send a template to re-engage this contact
+            </p>
+          </div>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-amber-400 hover:text-amber-300"
+            className="h-8 shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
             onClick={onOpenTemplates}
           >
-            <LayoutTemplate className="mr-1 h-3 w-3" />
-            Templates
+            <LayoutTemplate className="mr-1.5 h-3.5 w-3.5" />
+            Use Template
           </Button>
         </div>
       )}
 
-      <div className="flex items-end gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 w-9 shrink-0 p-0 text-slate-400 hover:text-white"
-          onClick={onOpenTemplates}
-          title="Send template"
-        >
-          <LayoutTemplate className="h-4 w-4" />
-        </Button>
+      {/* ── Input row ────────────────────────────────────────────── */}
+      <div
+        className={cn(
+          "flex items-end gap-2 rounded-2xl border bg-slate-800/60 px-2 py-2 transition-all",
+          sessionExpired
+            ? "border-slate-700/30 opacity-60"
+            : "border-slate-700/60 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/10",
+        )}
+      >
+        {/* Left action buttons */}
+        <div className="flex items-center gap-0.5 pb-0.5">
+          <button
+            type="button"
+            disabled={sessionExpired}
+            title="Attach file (coming soon)"
+            aria-label="Attach file"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-700/60 hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            disabled={sessionExpired}
+            title="Emoji (coming soon)"
+            aria-label="Insert emoji"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-700/60 hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Smile className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenTemplates}
+            disabled={sessionExpired}
+            title="Send template"
+            aria-label="Send WhatsApp template"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-700/60 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <LayoutTemplate className="h-4 w-4" />
+          </button>
+        </div>
 
+        {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={text}
@@ -122,32 +167,46 @@ export function MessageComposer({
           onKeyDown={handleKeyDown}
           placeholder={
             sessionExpired
-              ? "Session expired - use a template"
-              : "Type a message... (Shift+Enter for new line)"
+              ? "Session expired — use a template to re-engage"
+              : "Type a message… (Enter to send, Shift+Enter for new line)"
           }
           disabled={sessionExpired}
           rows={1}
+          aria-label="Message text"
+          aria-multiline="true"
           className={cn(
-            "flex-1 resize-none rounded-xl border border-slate-700/80 bg-slate-800/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20",
-            sessionExpired && "cursor-not-allowed opacity-50"
+            "flex-1 resize-none bg-transparent py-1.5 text-sm text-white placeholder-slate-500 outline-none",
+            sessionExpired && "cursor-not-allowed",
           )}
         />
 
+        {/* Send button */}
         <Button
           size="sm"
-          className="h-9 w-9 shrink-0 rounded-xl bg-emerald-600 p-0 shadow-md hover:bg-emerald-500 disabled:opacity-40 transition-all"
-          disabled={!text.trim() || sessionExpired || sending}
+          className={cn(
+            "mb-0.5 h-9 w-9 shrink-0 rounded-xl p-0 shadow-md transition-all",
+            canSend
+              ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20"
+              : "bg-slate-700/60 text-slate-500 cursor-not-allowed",
+          )}
+          disabled={!canSend}
           onClick={handleSend}
+          aria-label="Send message"
         >
-          <Send className="h-4 w-4" />
+          <Send
+            className={cn(
+              "h-4 w-4 transition-transform",
+              canSend && "translate-x-px -translate-y-px",
+            )}
+          />
         </Button>
       </div>
 
-      {/* Hint sits outside the flex row so its height doesn't push
-          `items-end` buttons below the textarea. Indented to line up
-          under the textarea left edge (w-9 button + gap-2 = 44px). */}
-      <p className="mt-1 pl-11 text-[10px] text-slate-600">
-        Type &apos;/&apos; for quick replies
+      {/* ── Shortcut hint ────────────────────────────────────────── */}
+      <p className="mt-1.5 text-center text-[10px] text-slate-700">
+        Press <kbd className="rounded bg-slate-800 px-1 py-0.5 font-mono text-slate-500">Enter</kbd> to send
+        &nbsp;·&nbsp;
+        <kbd className="rounded bg-slate-800 px-1 py-0.5 font-mono text-slate-500">Shift+Enter</kbd> for new line
       </p>
     </div>
   );

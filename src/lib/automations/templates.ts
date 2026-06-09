@@ -10,6 +10,9 @@ export type TemplateSlug =
   | 'out_of_office'
   | 'lead_qualifier'
   | 'follow_up_reminder'
+  | 'fb_lead_welcome'
+  | 'google_sheet_lead'
+  | 'email_auto_reply'
 
 export interface TemplateStepSeed {
   step_type: AutomationStepType
@@ -124,6 +127,30 @@ export const AUTOMATION_TEMPLATES: Record<TemplateSlug, AutomationTemplateDefini
         },
       },
     ],
+  },
+  fb_lead_welcome: {
+    slug: 'fb_lead_welcome',
+    name: 'Facebook Lead Welcome',
+    description: 'Auto-reply to leads captured from Facebook Ads.',
+    trigger_type: 'new_message_received',
+    trigger_config: {},
+    steps: [],
+  },
+  google_sheet_lead: {
+    slug: 'google_sheet_lead',
+    name: 'Google Sheet Lead',
+    description: 'Auto-reply to leads captured from Google Sheets.',
+    trigger_type: 'new_message_received',
+    trigger_config: {},
+    steps: [],
+  },
+  email_auto_reply: {
+    slug: 'email_auto_reply',
+    name: 'Email Auto Reply',
+    description: 'Auto-reply via email.',
+    trigger_type: 'new_message_received',
+    trigger_config: {},
+    steps: [],
   },
 }
 

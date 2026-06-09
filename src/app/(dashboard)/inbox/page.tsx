@@ -32,6 +32,10 @@ export default function InboxPage() {
   const [whatsappConnected, setWhatsappConnected] = useState<boolean | null>(
     null
   );
+
+  /** Controls the right contact-detail panel visibility on desktop. */
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+
   /**
    * Bumped whenever we want children (ConversationList, MessageThread)
    * to refetch from the DB — used as a safety net against missed
@@ -563,26 +567,35 @@ export default function InboxPage() {
   const hasActiveConv = !!activeConversation;
 
   return (
-    <div className="-m-4 flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden sm:-m-6">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* WhatsApp connection banner — in the flex column, not absolute,
           so it pushes the panels down instead of overlapping them. */}
       {whatsappConnected === false && (
         <div className="flex shrink-0 items-center justify-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">
           <WifiOff className="h-4 w-4 text-amber-400" />
           <p className="text-xs text-amber-400">
-            WhatsApp® is not connected. Go to Settings to connect your account.
+            WhatsApp® is not connected. Go to{" "}
+            <a href="/settings?tab=whatsapp" className="underline underline-offset-2 hover:text-amber-300">
+              Settings
+            </a>{" "}
+            to connect your account.
           </p>
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left panel: Conversation list.
-            Hidden on mobile when a conversation is selected so the
-            thread can occupy the full width. Always visible on lg+. */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── LEFT: Conversation List ──────────────────────────────────
+            Fixed 320 px on desktop; full-width on mobile when no conv
+            is selected (hides when a conversation is open on mobile). */}
         <div
+          role="region"
+          aria-label="Conversation list"
           className={cn(
-            "flex h-full flex-1 lg:flex-none",
-            hasActiveConv ? "hidden lg:flex" : "flex",
+            "flex h-full shrink-0",
+            // Mobile: full-width when list is visible, hidden when thread is open
+            hasActiveConv ? "hidden lg:flex" : "flex w-full lg:w-80",
+            // Desktop: always fixed 320px
+            "lg:w-80",
           )}
         >
           <ConversationList
@@ -594,13 +607,13 @@ export default function InboxPage() {
           />
         </div>
 
-        {/* Center panel: Message thread.
-            Hidden on mobile when no conversation is selected so the
-            list can occupy the full width. Always visible on lg+
-            (shows its own empty-state if no thread is picked yet). */}
+        {/* ── CENTER: Message Thread ───────────────────────────────────
+            Takes remaining width. Hidden on mobile when no thread open. */}
         <div
+          role="region"
+          aria-label="Chat thread"
           className={cn(
-            "flex h-full min-h-0 flex-1 overflow-hidden lg:flex",
+            "flex h-full min-w-0 flex-1 overflow-hidden",
             hasActiveConv ? "flex" : "hidden lg:flex",
           )}
         >
@@ -619,9 +632,22 @@ export default function InboxPage() {
           />
         </div>
 
-        {/* Right panel: Contact sidebar — desktop only. */}
-        <div className="hidden lg:block">
-          <ContactSidebar contact={activeContact} />
+        {/* ── RIGHT: Contact / Customer Panel ─────────────────────────
+            Desktop only. Collapsible via rightPanelOpen state.
+            Width transitions smoothly between 300px and 0. */}
+        <div
+          role="region"
+          aria-label="Contact details"
+          className={cn(
+            "hidden lg:flex h-full shrink-0 overflow-hidden transition-all duration-220 ease-in-out",
+            rightPanelOpen ? "w-[300px]" : "w-12",
+          )}
+        >
+          <ContactSidebar
+            contact={activeContact}
+            isOpen={rightPanelOpen}
+            onToggle={() => setRightPanelOpen((v) => !v)}
+          />
         </div>
       </div>
     </div>

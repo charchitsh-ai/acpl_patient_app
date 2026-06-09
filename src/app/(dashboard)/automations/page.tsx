@@ -53,6 +53,9 @@ const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
   out_of_office: Clock,
   lead_qualifier: Users,
   follow_up_reminder: PhoneCall,
+  fb_lead_welcome: Users,
+  google_sheet_lead: FileText,
+  email_auto_reply: MessageCircle,
 }
 
 export default function AutomationsPage() {

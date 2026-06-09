@@ -256,7 +256,10 @@ export type AutomationTriggerType =
   | 'new_contact_created'
   | 'conversation_assigned'
   | 'tag_added'
-  | 'time_based';
+  | 'time_based'
+  | 'fb_lead_captured'
+  | 'google_sheet_row'
+  | 'email_received';
 
 export type AutomationStepType =
   | 'send_message'
@@ -269,6 +272,7 @@ export type AutomationStepType =
   | 'wait'
   | 'condition'
   | 'send_webhook'
+  | 'send_email'
   | 'close_conversation';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
@@ -325,6 +329,17 @@ export interface CreateDealStepConfig {
   stage_id: string;
   title: string;
   value?: number;
+}
+
+export interface SendEmailStepConfig {
+  // Email address(es) to send to; comma‑separated or array.
+  to: string | string[];
+  // Subject line of the email.
+  subject: string;
+  // Plain‑text body. Optional HTML can be provided via html.
+  body: string;
+  // Optional HTML version of the email body.
+  html?: string;
 }
 
 export interface WaitStepConfig {
