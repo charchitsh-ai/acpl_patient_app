@@ -67,8 +67,8 @@ const audienceOptions: {
   },
   {
     type: 'csv',
-    label: 'Upload CSV',
-    description: 'Upload a list of phone numbers',
+    label: 'Upload CSV or Paste Numbers',
+    description: 'Upload CSV or enter phone numbers manually',
     icon: Upload,
   },
 ];
@@ -91,6 +91,7 @@ export function Step2SelectAudience({
   const [loadingFields, setLoadingFields] = useState(false);
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(false);
+  const [rawManualText, setRawManualText] = useState('');
 
   // Tags are used both by the primary "Filter by Tags" audience type
   // AND by the exclude-list below — so always load once on mount.
@@ -394,79 +395,129 @@ export function Step2SelectAudience({
       {audience.type === 'csv' && (
         <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
           <div>
-            <p className="text-sm font-medium text-white">Upload CSV File</p>
+            <p className="text-sm font-medium text-white">Upload CSV File or Paste Numbers</p>
             <p className="text-xs text-slate-400 mt-1">
-              File must contain a column for phone numbers (e.g. "phone", "mobile") and optionally names.
+              Select a CSV file, or paste your phone numbers directly into the input area below.
             </p>
           </div>
 
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-lg p-6 bg-slate-950/40 hover:border-slate-700 transition-colors relative">
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* CSV File Upload Option */}
+            <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-lg p-6 bg-slate-950/40 hover:border-slate-700 transition-colors relative h-48">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
 
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                  const text = event.target?.result as string;
-                  if (!text) return;
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const text = event.target?.result as string;
+                    if (!text) return;
 
-                  // Simple robust CSV line parser
-                  const lines = text.split(/\r?\n/).map(line => {
-                    // Match commas but ignore commas inside quotes
-                    const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-                    return matches.map(m => m.replace(/^"|"$/g, '').trim());
-                  }).filter(line => line.length > 0 && line.some(cell => cell !== ''));
+                    // Simple robust CSV line parser
+                    const lines = text.split(/\r?\n/).map(line => {
+                      // Match commas but ignore commas inside quotes
+                      const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+                      return matches.map(m => m.replace(/^"|"$/g, '').trim());
+                    }).filter(line => line.length > 0 && line.some(cell => cell !== ''));
 
-                  if (lines.length === 0) {
-                    toast.error('The selected CSV file is empty.');
-                    return;
-                  }
+                    if (lines.length === 0) {
+                      toast.error('The selected CSV file is empty.');
+                      return;
+                    }
 
-                  const headers = lines[0].map(h => h.toLowerCase());
+                    const headers = lines[0].map(h => h.toLowerCase());
+                    
+                    // Find column indices
+                    let phoneIdx = headers.findIndex(h => h.includes('phone') || h.includes('mobile') || h.includes('number') || h.includes('tel') || h.includes('contact'));
+                    let nameIdx = headers.findIndex(h => h.includes('name') || h.includes('first') || h.includes('full'));
+
+                    // Fallbacks if headers are not clearly labeled
+                    if (phoneIdx === -1) phoneIdx = 0;
+                    if (nameIdx === -1) nameIdx = 1;
+
+                    const contacts: { phone: string; name?: string }[] = [];
+                    const dataLines = lines.slice(1); // skip header line
+
+                    dataLines.forEach(line => {
+                      let phone = line[phoneIdx] || '';
+                      phone = cleanAndNormalizePhone(phone);
+                      if (phone.length >= 7) {
+                        const name = nameIdx !== -1 ? line[nameIdx] : undefined;
+                        contacts.push({ phone, name });
+                      }
+                    });
+
+                    if (contacts.length === 0) {
+                      toast.error('Could not find any valid phone numbers in the CSV.');
+                      return;
+                    }
+
+                    onUpdate({
+                      ...audience,
+                      csvContacts: contacts,
+                    });
+                    toast.success(`Successfully loaded ${contacts.length} contacts from CSV.`);
+                  };
+                  reader.readAsText(file);
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+              <Upload className="h-8 w-8 text-slate-500 mb-2" />
+              <span className="text-sm font-medium text-slate-300 text-center">
+                Click to upload or drag & drop CSV file
+              </span>
+              <span className="text-xs text-slate-500 mt-1">.CSV format only</span>
+            </div>
+
+            {/* Manual Paste Option */}
+            <div className="flex flex-col gap-2 p-4 border border-slate-800 rounded-lg bg-slate-950/20 h-48">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Or Paste Numbers Directly
+              </span>
+              <textarea
+                value={rawManualText}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRawManualText(val);
                   
-                  // Find column indices
-                  let phoneIdx = headers.findIndex(h => h.includes('phone') || h.includes('mobile') || h.includes('number') || h.includes('tel') || h.includes('contact'));
-                  let nameIdx = headers.findIndex(h => h.includes('name') || h.includes('first') || h.includes('full'));
-
-                  // Fallbacks if headers are not clearly labeled
-                  if (phoneIdx === -1) phoneIdx = 0;
-                  if (nameIdx === -1) nameIdx = 1;
-
-                  const contacts: { phone: string; name?: string }[] = [];
-                  const dataLines = lines.slice(1); // skip header line
-
-                  dataLines.forEach(line => {
-                    let phone = line[phoneIdx] || '';
+                  // Parse dynamically
+                  const tokens = val.split(/[\n,;]+/).map(line => line.trim()).filter(Boolean);
+                  const list: { phone: string; name?: string }[] = [];
+                  tokens.forEach(token => {
+                    const parts = token.split(/[|\t]+/).map(p => p.trim());
+                    let phone = parts[0] || '';
+                    let name = parts[1] || undefined;
+                    
+                    // Simple swap if parts are ordered name | phone
+                    if (phone.includes('@') || (isNaN(Number(phone.replace(/[^\d]/g, ''))) && phone.length < 5)) {
+                      if (parts[1]) {
+                        const temp = phone;
+                        phone = parts[1];
+                        name = temp;
+                      }
+                    }
+                    
                     phone = cleanAndNormalizePhone(phone);
                     if (phone.length >= 7) {
-                      const name = nameIdx !== -1 ? line[nameIdx] : undefined;
-                      contacts.push({ phone, name });
+                      list.push({ phone, name });
                     }
                   });
-
-                  if (contacts.length === 0) {
-                    toast.error('Could not find any valid phone numbers in the CSV.');
-                    return;
-                  }
-
+                  
                   onUpdate({
                     ...audience,
-                    csvContacts: contacts,
+                    csvContacts: list,
                   });
-                  toast.success(`Successfully loaded ${contacts.length} contacts from CSV.`);
-                };
-                reader.readAsText(file);
-              }}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
-            <Upload className="h-8 w-8 text-slate-500 mb-2" />
-            <span className="text-sm font-medium text-slate-300">
-              Click to upload or drag & drop CSV file
-            </span>
-            <span className="text-xs text-slate-500 mt-1">.CSV format only</span>
+                }}
+                placeholder="Paste numbers here (one per line, or comma-separated).&#10;Format: phone | name (optional)"
+                className="flex-1 min-h-0 w-full rounded-lg border border-slate-700 bg-slate-800 p-2 text-xs text-white outline-none placeholder:text-slate-500 focus:border-primary focus:ring-1 focus:ring-primary resize-none font-mono"
+              />
+              <span className="text-[10px] text-slate-500">
+                E.g. +919999999999 or +919999999999 | S Charchit
+              </span>
+            </div>
           </div>
 
           {audience.csvContacts && audience.csvContacts.length > 0 && (
@@ -474,10 +525,13 @@ export function Step2SelectAudience({
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
                 <span>Parsed {audience.csvContacts.length} contacts</span>
                 <button
-                  onClick={() => onUpdate({ ...audience, csvContacts: [] })}
+                  onClick={() => {
+                    setRawManualText('');
+                    onUpdate({ ...audience, csvContacts: [] });
+                  }}
                   className="text-red-400 hover:text-red-300 font-medium"
                 >
-                  Clear File
+                  Clear List
                 </button>
               </div>
               <div className="max-h-32 overflow-y-auto space-y-1 text-xs font-mono text-slate-300">
