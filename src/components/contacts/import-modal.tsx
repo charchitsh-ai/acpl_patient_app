@@ -14,6 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Upload, FileText, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
+import { cleanAndNormalizePhone } from '@/lib/whatsapp/phone-utils';
+
 interface ImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,7 +64,9 @@ function parseCSV(text: string): ParsedRow[] {
     }
     values.push(current.trim());
 
-    const phone = values[phoneIdx]?.replace(/["']/g, '').trim();
+    const rawPhone = values[phoneIdx]?.replace(/["']/g, '').trim();
+    if (!rawPhone) continue;
+    const phone = cleanAndNormalizePhone(rawPhone);
     if (!phone) continue;
 
     rows.push({

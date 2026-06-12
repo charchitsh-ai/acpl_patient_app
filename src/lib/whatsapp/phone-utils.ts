@@ -5,7 +5,30 @@
  */
 export function sanitizePhoneForMeta(phone: string): string {
   if (!phone) return ''
-  return phone.replace(/\D/g, '')
+  let cleaned = phone.trim()
+  if (/^\d+\.?\d*[eE][+-]?\d+$/.test(cleaned)) {
+    const num = Number(cleaned)
+    if (!isNaN(num)) {
+      cleaned = num.toString()
+    }
+  }
+  return cleaned.replace(/\D/g, '')
+}
+
+/**
+ * Robustly cleans and normalizes a phone number, resolving scientific notation if present.
+ * Keeps only digits and the '+' sign.
+ */
+export function cleanAndNormalizePhone(phone: string): string {
+  if (!phone) return ''
+  let cleaned = phone.trim()
+  if (/^\d+\.?\d*[eE][+-]?\d+$/.test(cleaned)) {
+    const num = Number(cleaned)
+    if (!isNaN(num)) {
+      cleaned = num.toString()
+    }
+  }
+  return cleaned.replace(/[^\d+]/g, '')
 }
 
 /**

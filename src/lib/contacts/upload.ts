@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/automations/admin-client';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
+import { cleanAndNormalizePhone } from '../whatsapp/phone-utils';
 
 /**
  * Parse CSV content from a string and return rows as objects.
@@ -28,9 +29,11 @@ export async function uploadContacts(userId: string, csvContent: string) {
   const db = supabaseAdmin();
   for (const row of rows) {
     const name = row['name']?.trim();
-    const phone = row['phone']?.trim();
+    const rawPhone = row['phone']?.trim();
     const email = row['email']?.trim();
-    if (!phone) continue; // phone is required key
+    if (!rawPhone) continue; // phone is required key
+    const phone = cleanAndNormalizePhone(rawPhone);
+    if (!phone) continue;
     const payload: any = { user_id: userId, phone };
     if (name) payload.name = name;
     if (email) payload.email = email;

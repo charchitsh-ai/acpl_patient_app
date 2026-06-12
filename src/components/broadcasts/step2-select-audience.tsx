@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CustomField, Tag } from '@/types';
+import { cleanAndNormalizePhone } from '@/lib/whatsapp/phone-utils';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -439,8 +440,7 @@ export function Step2SelectAudience({
 
                   dataLines.forEach(line => {
                     let phone = line[phoneIdx] || '';
-                    // Clean non-digits except +
-                    phone = phone.replace(/[^\d+]/g, '');
+                    phone = cleanAndNormalizePhone(phone);
                     if (phone.length >= 7) {
                       const name = nameIdx !== -1 ? line[nameIdx] : undefined;
                       contacts.push({ phone, name });
