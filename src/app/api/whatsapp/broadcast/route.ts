@@ -146,6 +146,7 @@ export async function POST(request: Request) {
       template_name,
       template_language,
       template_params,
+      template_body,
     } = body
 
     // Normalize to a list of {phone, params} regardless of shape.
@@ -261,7 +262,17 @@ export async function POST(request: Request) {
           if (contact) {
             const conversation = await findOrCreateConversation(user.id, contact.id)
             if (conversation) {
-              const preview = `[Broadcast] ${template_name}`
+              // Render the template body with this recipient's params so the
+              // inbox shows the actual message text (e.g. "Hi John, ...") rather
+              // than the placeholder "[Broadcast] template_name".
+              const recipientParams: string[] = recipient.params ?? []
+              const renderedBody = template_body
+                ? recipientParams.reduce(
+                    (text: string, val: string, idx: number) =>
+                      text.replace(new RegExp(`\\{\\{${idx + 1}\\}}`, 'g'), val),
+                    template_body as string
+                  )
+                : `[Broadcast] ${template_name}`
               const now = new Date().toISOString()
 
               // Insert the outbound message row so it appears in the thread
@@ -271,7 +282,7 @@ export async function POST(request: Request) {
                   conversation_id: conversation.id,
                   sender_type: 'agent',
                   content_type: 'template',
-                  content_text: preview,
+                  content_text: renderedBody,
                   template_name,
                   message_id: sentMessageId,
                   status: 'sent',
@@ -282,7 +293,7 @@ export async function POST(request: Request) {
               await supabaseAdmin()
                 .from('conversations')
                 .update({
-                  last_message_text: preview,
+                  last_message_text: renderedBody,
                   last_message_at: now,
                   updated_at: now,
                 })

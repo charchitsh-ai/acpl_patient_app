@@ -450,6 +450,9 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
               recipients: apiRecipients,
               template_name: payload.template.name,
               template_language: payload.template.language ?? 'en_US',
+              // Pass the raw body so the API can render each recipient's
+              // personalised preview and store it as content_text in the inbox
+              template_body: payload.template.body_text ?? '',
             }),
           });
 
