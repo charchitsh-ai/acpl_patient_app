@@ -8,10 +8,8 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
-import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { requestAndSaveFCMToken, onMessageListener } from "@/lib/firebase/config";
 
 
 export default function InboxPage() {
@@ -82,41 +80,6 @@ export default function InboxPage() {
   useEffect(() => {
     handleSelectRef.current = handleSelectConversation;
   });
-
-  // Setup Firebase Cloud Messaging for Push Notifications
-  useEffect(() => {
-    const setupFCM = async () => {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user;
-
-      if (user) {
-        await requestAndSaveFCMToken(supabase, user.id);
-      }
-    };
-
-    setupFCM();
-  }, []);
-
-  // Listen to active foreground push notifications
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      onMessageListener()
-        .then((payload: any) => {
-          console.log("Foreground push notification received:", payload);
-          toast(
-            payload.notification?.title || "New Message Received",
-            {
-              description: payload.notification?.body || "You have a new message.",
-              duration: 5000,
-            }
-          );
-        })
-        .catch((err) => console.error("Foreground push notification listener error:", err));
-    }
-  }, []);
 
   // Pull the conversation row with its `contact` joined and merge it
   // into state. Needed because Supabase Realtime payloads only carry the

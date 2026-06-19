@@ -1,5 +1,21 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getMessaging, Messaging, getToken, onMessage } from "firebase/messaging";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import {
+  getMessaging,
+  getToken,
+  isSupported,
+  onMessage,
+  type MessagePayload,
+  type Messaging,
+} from "firebase/messaging";
+
+interface FcmTokenClient {
+  from: (table: "user_fcm_tokens") => {
+    upsert: (
+      values: { user_id: string; token: string; updated_at: string },
+      options: { onConflict: string },
+    ) => PromiseLike<{ error: { message: string } | null }>;
+  };
+}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,24 +27,80 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const hasFirebaseBrowserConfig = Boolean(
+  firebaseConfig.apiKey &&
+    firebaseConfig.authDomain &&
+    firebaseConfig.projectId &&
+    firebaseConfig.messagingSenderId &&
+    firebaseConfig.appId,
+);
+
+// Initialize Firebase only when this deployment has browser config.
+const app: FirebaseApp | null = hasFirebaseBrowserConfig
+  ? getApps().length === 0
+    ? initializeApp(firebaseConfig)
+    : getApp()
+  : null;
 
 let messaging: Messaging | null = null;
+let messagingInitPromise: Promise<Messaging | null> | null = null;
 
-if (typeof window !== "undefined") {
-  try {
-    messaging = getMessaging(app);
-  } catch (error) {
-    console.error("Firebase Messaging failed to initialize:", error);
-  }
+async function getBrowserMessaging() {
+  if (messaging) return messaging;
+  if (messagingInitPromise) return messagingInitPromise;
+
+  messagingInitPromise = (async () => {
+    if (typeof window === "undefined" || !app || !hasFirebaseBrowserConfig) {
+      return null;
+    }
+
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+      console.warn("Firebase Messaging is not supported in this browser.");
+      return null;
+    }
+
+    const supported = await isSupported().catch(() => false);
+    if (!supported) {
+      console.warn("Firebase Messaging is not supported in this browser.");
+      return null;
+    }
+
+    try {
+      messaging = getMessaging(app);
+      return messaging;
+    } catch (error) {
+      console.error("Firebase Messaging failed to initialize:", error);
+      return null;
+    }
+  })();
+
+  return messagingInitPromise;
 }
 
-export { app, messaging };
+export { app, getBrowserMessaging, hasFirebaseBrowserConfig };
 
 // Helper to request notification permission and get FCM Token
-export async function requestAndSaveFCMToken(supabaseClient: any, userId: string) {
-  if (typeof window === "undefined" || !messaging) return null;
+export async function requestAndSaveFCMToken(
+  supabaseClient: FcmTokenClient,
+  userId: string,
+) {
+  if (typeof window === "undefined") return null;
+
+  if (!hasFirebaseBrowserConfig) {
+    console.warn(
+      "Firebase push notifications are not configured. Set NEXT_PUBLIC_FIREBASE_* env vars.",
+    );
+    return null;
+  }
+
+  const activeMessaging = await getBrowserMessaging();
+  if (!activeMessaging) return null;
+
+  const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+  if (!vapidKey) {
+    console.warn("NEXT_PUBLIC_FIREBASE_VAPID_KEY is not set. Cannot register push token.");
+    return null;
+  }
 
   try {
     const permission = await Notification.requestPermission();
@@ -39,8 +111,13 @@ export async function requestAndSaveFCMToken(supabaseClient: any, userId: string
 
     // Get the FCM registration token
     // Note: VAPID Key is required by Firebase Web Push
-    const token = await getToken(messaging, {
-      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+    const serviceWorkerRegistration = await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js",
+    );
+
+    const token = await getToken(activeMessaging, {
+      vapidKey,
+      serviceWorkerRegistration,
     });
 
     if (token) {
@@ -72,11 +149,11 @@ export async function requestAndSaveFCMToken(supabaseClient: any, userId: string
 }
 
 // Helper to listen to active foreground messages
-export function onMessageListener() {
-  return new Promise((resolve) => {
-    if (!messaging) return;
-    onMessage(messaging, (payload) => {
-      resolve(payload);
-    });
-  });
+export async function onForegroundMessage(
+  callback: (payload: MessagePayload) => void,
+) {
+  const activeMessaging = await getBrowserMessaging();
+  if (!activeMessaging) return undefined;
+
+  return onMessage(activeMessaging, callback);
 }

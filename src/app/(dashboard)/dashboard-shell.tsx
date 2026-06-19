@@ -5,6 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { createClient } from "@/lib/supabase/client";
+import {
+  onForegroundMessage,
+  requestAndSaveFCMToken,
+} from "@/lib/firebase/config";
+import { toast } from "sonner";
 
 // Auth-gated dashboard shell. Extracted from the layout so the layout
 // itself can stay a server component and export metadata (noindex) —
@@ -25,6 +31,38 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (loading || !user) return;
+
+    const supabase = createClient();
+    void requestAndSaveFCMToken(supabase, user.id);
+  }, [loading, user]);
+
+  useEffect(() => {
+    if (loading || !user) return;
+
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+
+    void onForegroundMessage((payload) => {
+      toast(payload.notification?.title || "New Message Received", {
+        description: payload.notification?.body || "You have a new message.",
+        duration: 5000,
+      });
+    }).then((cleanup) => {
+      if (cancelled) {
+        cleanup?.();
+        return;
+      }
+      unsubscribe = cleanup;
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [loading, user]);
 
   if (loading) {
     return (
