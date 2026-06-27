@@ -309,7 +309,7 @@ const PATIENT_BOOKING: FlowTemplate = {
       node_key: "welcome",
       node_type: "send_buttons",
       config: {
-        text: "Welcome to AYKA Care booking assistant! 🏥 Who is this appointment for?",
+        text: "Welcome to AYKA Care booking assistant! Who is this appointment for?",
         footer_text: "Please select an option below.",
         buttons: [
           {
@@ -453,7 +453,7 @@ const PATIENT_BOOKING: FlowTemplate = {
       node_key: "summary_confirm",
       node_type: "send_message",
       config: {
-        text: "Thank you for providing the details. A care coordinator is reviewing your request for booking. We will contact you on this number shortly. 🩺",
+        text: "Thank you for providing the details. A care coordinator is reviewing your request for booking. We will contact you on this number shortly.",
         next_node_key: "handoff_booking",
       } as SendMessageNodeConfig,
     },
