@@ -286,6 +286,188 @@ const LEAD_CAPTURE: FlowTemplate = {
 };
 
 // ============================================================
+// 4. Patient Booking System — Specialist + Symptom + Patient details capture
+// ============================================================
+const PATIENT_BOOKING: FlowTemplate = {
+  slug: "patient_booking",
+  name: "Patient Booking System",
+  description: "Automate patient details, specialist routing, symptoms logging, and patient relations (Own/Family/Friend).",
+  icon: "UserPlus",
+  trigger_type: "keyword",
+  trigger_config: {
+    keywords: ["book", "appointment", "doctor", "consult", "ayka", "patient"],
+    match_type: "contains"
+  },
+  entry_node_id: "start",
+  nodes: [
+    {
+      node_key: "start",
+      node_type: "start",
+      config: { next_node_key: "welcome" },
+    },
+    {
+      node_key: "welcome",
+      node_type: "send_buttons",
+      config: {
+        text: "Welcome to AYKA Care booking assistant! 🏥 Who is this appointment for?",
+        footer_text: "Please select an option below.",
+        buttons: [
+          {
+            reply_id: "self",
+            title: "For Myself",
+            next_node_key: "ask_name_self",
+          },
+          {
+            reply_id: "family",
+            title: "For Family Member",
+            next_node_key: "ask_relation",
+          },
+          {
+            reply_id: "friend",
+            title: "For a Friend",
+            next_node_key: "ask_relation",
+          },
+        ],
+      } as SendButtonsNodeConfig,
+    },
+    {
+      node_key: "ask_relation",
+      node_type: "collect_input",
+      config: {
+        prompt_text: "Please enter the relationship/details (e.g. Mother, Father, Friend name):",
+        var_key: "patient_relation",
+        next_node_key: "ask_name_other",
+      } as CollectInputNodeConfig,
+    },
+    {
+      node_key: "ask_name_self",
+      node_type: "collect_input",
+      config: {
+        prompt_text: "Got it. Please confirm the patient's full name:",
+        var_key: "patient_name",
+        next_node_key: "ask_age",
+      } as CollectInputNodeConfig,
+    },
+    {
+      node_key: "ask_name_other",
+      node_type: "collect_input",
+      config: {
+        prompt_text: "Understood. What is the patient's full name?",
+        var_key: "patient_name",
+        next_node_key: "ask_age",
+      } as CollectInputNodeConfig,
+    },
+    {
+      node_key: "ask_age",
+      node_type: "collect_input",
+      config: {
+        prompt_text: "What is the patient's age?",
+        var_key: "patient_age",
+        next_node_key: "ask_gender",
+      } as CollectInputNodeConfig,
+    },
+    {
+      node_key: "ask_gender",
+      node_type: "send_buttons",
+      config: {
+        text: "Please select the patient's gender:",
+        buttons: [
+          {
+            reply_id: "male",
+            title: "Male",
+            next_node_key: "ask_symptoms",
+          },
+          {
+            reply_id: "female",
+            title: "Female",
+            next_node_key: "ask_symptoms",
+          },
+          {
+            reply_id: "other",
+            title: "Other",
+            next_node_key: "ask_symptoms",
+          },
+        ],
+      } as SendButtonsNodeConfig,
+    },
+    {
+      node_key: "ask_symptoms",
+      node_type: "collect_input",
+      config: {
+        prompt_text: "Briefly describe the symptoms or reason for the visit (e.g. Fever, Joint Pain, Regular Checkup):",
+        var_key: "patient_symptoms",
+        next_node_key: "ask_specialist",
+      } as CollectInputNodeConfig,
+    },
+    {
+      node_key: "ask_specialist",
+      node_type: "send_list",
+      config: {
+        text: "Which specialist category are you looking for?",
+        button_label: "View Specialists",
+        sections: [
+          {
+            title: "General & Internal Medicine",
+            rows: [
+              {
+                reply_id: "general_physician",
+                title: "General Physician",
+                description: "Fever, Cold, Cough, General health",
+                next_node_key: "summary_confirm",
+              },
+              {
+                reply_id: "pediatrician",
+                title: "Pediatrician",
+                description: "Child health and wellness",
+                next_node_key: "summary_confirm",
+              },
+            ],
+          },
+          {
+            title: "Specialized Care",
+            rows: [
+              {
+                reply_id: "cardiologist",
+                title: "Cardiologist",
+                description: "Heart, Blood pressure, Chest pain",
+                next_node_key: "summary_confirm",
+              },
+              {
+                reply_id: "orthopedician",
+                title: "Orthopedician",
+                description: "Bone joint pain, Fractures",
+                next_node_key: "summary_confirm",
+              },
+              {
+                reply_id: "dermatologist",
+                title: "Dermatologist",
+                description: "Skin, Hair, Acne, Allergies",
+                next_node_key: "summary_confirm",
+              },
+            ],
+          },
+        ],
+      } as SendListNodeConfig,
+    },
+    {
+      node_key: "summary_confirm",
+      node_type: "send_message",
+      config: {
+        text: "Thank you for providing the details. A care coordinator is reviewing your request for booking. We will contact you on this number shortly. 🩺",
+        next_node_key: "handoff_booking",
+      } as SendMessageNodeConfig,
+    },
+    {
+      node_key: "handoff_booking",
+      node_type: "handoff",
+      config: {
+        note: "Appointment Booking Request Details:\n- Relation: {{vars.patient_relation}}\n- Name: {{vars.patient_name}}\n- Age: {{vars.patient_age}}\n- Gender: {{vars.gender}}\n- Symptoms: {{vars.patient_symptoms}}\n- Specialist: {{vars.specialist}}",
+      } as HandoffNodeConfig,
+    },
+  ],
+};
+
+// ============================================================
 // Registry
 // ============================================================
 
@@ -293,6 +475,7 @@ const TEMPLATES: Record<string, FlowTemplate> = {
   welcome_menu: WELCOME_MENU,
   faq_bot: FAQ_BOT,
   lead_capture: LEAD_CAPTURE,
+  patient_booking: PATIENT_BOOKING,
 };
 
 export function getFlowTemplate(slug: string): FlowTemplate | null {
